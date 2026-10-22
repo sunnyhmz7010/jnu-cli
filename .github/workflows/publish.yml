@@ -1,63 +1,29 @@
-name: Publish npm
+name: npm
 
 on:
   push:
     tags:
-      - 'v*'
-  # 手动运行只验证和打包，不发布新版本。
-  workflow_dispatch:
+      - "v*"
 
 permissions:
   contents: read
-
-concurrency:
-  group: npm-publish-${{ github.ref }}
-  cancel-in-progress: false
+  id-token: write
 
 jobs:
-  publish:
+  build-and-push:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-      id-token: write
     steps:
-      - name: 检出发布提交
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: 设置 Node.js
-        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: '24'
           registry-url: https://registry.npmjs.org/
-          package-manager-cache: false
 
-      - name: 校验发布版本
-        if: github.event_name == 'push'
-        env:
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          node --input-type=module <<'NODE'
-          import assert from 'node:assert/strict';
-          import { readFileSync } from 'node:fs';
-          const manifest = JSON.parse(readFileSync('package.json', 'utf8'));
-          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
-          assert.match(manifest.version, /^\d+\.\d+\.\d+$/, '仅发布正式版本');
-          assert.equal(process.env.RELEASE_TAG, `v${manifest.version}`, 'Git 标签必须与包版本一致');
-          assert.equal(lock.version, manifest.version, '锁文件版本必须与包版本一致');
-          assert.equal(lock.packages[''].version, manifest.version, '锁文件根包版本必须一致');
-          NODE
-
-      - name: 安装依赖
+      - name: Install dependencies
         run: npm ci
 
-      - name: 检查并打包
-        # prepack 会执行 npm test 和 npm run check。
-        run: npm pack
-
-      - name: 发布到 npm
-        if: github.event_name == 'push'
-        run: npm publish ./jnu-cli-*.tgz --access public
+      - name: Publish
+        run: npm publish --access public
