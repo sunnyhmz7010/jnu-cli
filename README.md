@@ -31,8 +31,6 @@
 | 评教进度 | 查看评教统计和待评、已评的课程评估项 | `jnu-cli evaluation summary`<br>`jnu-cli evaluation list` |
 | 个人信息 | 查询本人的院系、专业、班级、校区和学籍状态等常用信息 | `jnu-cli profile show` |
 
-命令默认输出结构化 JSON，完整参数与字段说明见下方「使用说明」。
-
 ## ⚡ 快速开始
 
 ### 📋 前置要求
@@ -56,11 +54,11 @@ jnu-cli course today
 
 `auth login` 会打开一个持久化浏览器 profile。你在正常网页里完成统一身份认证后，CLI 会验证本科课表访问，再关闭并重新打开同一档案，确认登录态可复用后返回成功。学校会话到期后重新运行登录命令即可。
 
+### 🤖 Agent Skill
+
+配套 Skill 位于 [skills/jnu-cli-skill](skills/jnu-cli-skill/README.md)，随 npm 包发布。将该目录完整复制到 Codex 的 `~/.codex/skills/jnu-cli-skill/`；使用自定义 `CODEX_HOME` 时，复制到其 `skills/jnu-cli-skill/`。
+
 ## 📖 使用说明
-
-CLI 契约是用户和 agent 都应依赖的稳定接口。
-
-本节以 [szu-cli 的 CLI 契约原文](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md) 为底稿，按 jnu-cli 已实现的命令和返回字段修改；原始内容的版权与许可声明见 [MIT 许可证](skills/jnu-cli-skill/LICENSE)。以下 JSON 使用合成数据展示主要字段，省略部分辅助字段。
 
 ### ⌨️ 命令形态
 
@@ -102,7 +100,7 @@ jnu-cli profile show
 
 `jnu-cli doctor` 是无 action 的环境诊断命令；其他业务命令遵循上述 `<domain> <action>` 形式。
 
-命令默认输出 JSON；`--help` 和 `--version` 输出文字。`--json` 不受支持。
+命令默认输出 JSON；`--help` 和 `--version` 输出文字。
 
 ### ⚙️ 常用参数
 
@@ -855,12 +853,6 @@ jnu-cli profile show
 
 编码字段同时保留 `code` 和 `name`，缺失值为 `null`。证件号、电话、邮箱、地址、银行卡等不进入结果，不输出原始档案。
 
-### 🤖 Agent Skill
-
-配套 Skill 位于 [skills/jnu-cli-skill](skills/jnu-cli-skill/README.md)，随 npm 包发布。将该目录完整复制到 Codex 的 `~/.codex/skills/jnu-cli-skill/`；使用自定义 `CODEX_HOME` 时，复制到其 `skills/jnu-cli-skill/`。
-
-Skill 保留上游的命令路由、示例、错误处理和隐私边界，按已实现功能适配暨大。Agent 应顺序调用 CLI、解析默认 JSON，只基于返回字段作答；需要登录时由本人在浏览器中完成。
-
 ## 🧠 功能细节
 
 - 登录态保存在本机：后续命令复用 `~/.jnu-cli/browser-profiles/<browser>/` 下的登录态。可用 `JNU_CLI_HOME` 指定存储目录；同一档案的命令应顺序执行。
@@ -905,8 +897,7 @@ jnu-cli/
 
 ### 🧰 环境
 
-- Node.js >= 20 和 npm。
-- 真实登录与查询需要可用浏览器、网络和本人账户；自动化测试使用合成数据。
+- Node.js >= 20 和 npm
 
 ### ⚙️ 命令
 
@@ -921,10 +912,6 @@ npm pack --dry-run --ignore-scripts
 ```
 
 源码入口为 `node src/cli.js`，也可使用 `npm run jnu-cli -- <参数>`。安装后的命令与源码入口使用同一套参数。
-
-发布新版本时，先用 `npm version patch`（或 `minor`、`major`）更新包与锁文件版本并创建标签，再执行 `git push origin main --follow-tags`。推送 `v*` 标签就会触发 [npm 发布工作流](.github/workflows/publish.yml)，自动安装依赖并发布到 npm；发布前由 `prepack` 执行测试和项目检查。GitHub Release 可随后补充发布说明。
-
-工作流通过 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) 认证。npm 包设置中的 GitHub 仓库为 `sunnyhmz7010/jnu-cli`，工作流文件名为 `publish.yml`，允许 `npm publish`；无需配置 npm Token。
 
 ## 🔐 安全报告
 
