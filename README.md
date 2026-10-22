@@ -177,6 +177,10 @@ npm pack --dry-run --ignore-scripts
 
 源码入口为 `node src/cli.js`，也可使用 `npm run jnu-cli -- <参数>`。安装后的命令与源码入口使用同一套参数。
 
+发布新版本时，先用 `npm version patch`（或 `minor`、`major`）更新包与锁文件版本并创建标签，再执行 `git push origin main --follow-tags`。在 GitHub 为该标签发布正式 Release，例如 `v0.1.1`，会触发 [npm 发布工作流](.github/workflows/publish.yml)：校验标签与版本一致，运行测试和项目检查，通过后自动发布到 npm。预发布 Release 会跳过；Actions 中手动运行 `Publish npm` 只检查和打包。
+
+工作流通过 [npm Trusted Publishing](https://docs.npmjs.com/trusted-publishers/) 认证。npm 包设置中的 GitHub 仓库为 `sunnyhmz7010/jnu-cli`，工作流文件名为 `publish.yml`，允许 `npm publish`；无需配置 npm Token。
+
 ## 🔐 安全报告
 
 如果发现安全问题，请不要公开披露细节。请优先参考仓库中的 [SECURITY.md](./SECURITY.md) 提交安全报告。
