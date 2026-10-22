@@ -58,203 +58,808 @@ jnu-cli course today
 
 ## 📖 使用说明
 
-安装后使用 `jnu-cli` 运行，执行 `jnu-cli --help` 查看已支持命令。命令形式和公共字段参考 [szu-cli CLI 契约](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md)。命令默认输出 JSON；`--help` 和 `--version` 输出文字。支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。
+CLI 契约是用户和 agent 都应依赖的稳定接口。
 
-### 🩺 环境诊断
+本节以 [szu-cli 的 CLI 契约原文](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md) 为底稿，按 jnu-cli 已实现的命令和返回字段修改；原始内容的版权与许可声明见 [MIT 许可证](skills/jnu-cli-skill/LICENSE)。以下 JSON 使用合成数据展示主要字段，省略部分辅助字段。
+
+### ⌨️ 命令形态
+
+```bash
+jnu-cli <domain> <action> [flags]
+```
+
+示例：
 
 ```bash
 jnu-cli doctor
-```
-
-诊断只读取本机环境，返回 `cli`、`node`、`platform`、`home`、`profile`、`playwright` 和 `browser`。`node.ok` 表示 Node.js 是否满足最低版本，`playwright.installed` 表示依赖是否可加载，`browser` 列出浏览器可用性和当前选择。目录路径只作展示，检查不会创建配置或登录档案。登录状态使用 `jnu-cli auth status` 检查。
-
-### 🔑 登录与浏览器
-
-```bash
 jnu-cli browser status
-jnu-cli browser use edge
-jnu-cli auth login --timeout 900 --network direct
-jnu-cli auth status --network direct
-```
-
-`browser status` 只检查浏览器与配置，不建立登录档案。`browser use` 保存选择，不安装浏览器。`JNU_BROWSER` 的优先级高于保存的选择；未指定时检测已安装浏览器。Chromium 需要本人事先安装 Playwright 对应的浏览器，程序不会自动下载。
-
-默认目录是 `~/.jnu-cli/`，可用 `JNU_CLI_HOME` 指定。登录档案按浏览器隔离，不共享常用浏览器的会话。不要并行执行占用同一档案的命令。
-
-登录默认等待 300 秒，`--timeout` 可设为 1 至 1800 秒。本人正常完成认证后，CLI 进入本科课表并验证业务响应，再关闭和重开档案验证，成功才返回 `persisted=true`。状态命令在未登录时成功返回 `loggedIn=false`，查询则返回 `LOGIN_REQUIRED`。
-
-登录默认打开可见浏览器，可用 `--headless` 复用已有会话；状态检查与业务查询默认无界面，添加 `--headed` 可显示浏览器。`--url` 可覆盖认证或对应业务入口。程序仍使用独立档案和正常的会话恢复功能，不导出、复制或延长学校 Cookie。
-
-### 🌐 网络选项
-
-所有教务命令支持 `--network system|direct`：
-
-- `system`：默认值，沿用系统网络配置。
-- `direct`：仅让此次 CLI 浏览器直连，不修改全局代理或 DNS。
-
-登录后的重启检查沿用同一选项，后续查询也应使用适合当前环境的路径。JSON 的 `meta.network` 标明本次选择。此选项与 WebVPN 无关，WebVPN 尚未适配。
-
-在一台 Windows 机器上，代理 DNS 与系统 DNS 选择了不同的学校公开 WAF 节点，前者的认证链路间歇出现 502；同一代理使用系统解析得到的公开 WAF 地址时正常。`--network direct` 已在该环境通过真实验收。程序不固定这些地址，不在失败后自动切换路径，也不将网络错误当作需要重新登录。
-
-### 📅 个人课表
-
-```bash
-jnu-cli course status --network direct
-jnu-cli course list --network direct
-jnu-cli course list --week 7 --weekday 3 --network direct
-jnu-cli course list --weekday 3 --network direct
-jnu-cli course list --term 2025-2026-2 --network direct
-jnu-cli course today --date 2026-10-22 --network direct
-```
-
-`status` 核验课表访问，返回 `loggedIn`、`reason`、`term` 和 `sourceUrl`。`list` 默认筛选当前教学周；可用 `--term` 选择学期，`--week` 指定周次，`--weekday` 指定周一至周日的 1 至 7。
-
-日期按 `Asia/Shanghai` 解释。当天或指定日期查询向学校传递目标日期，由校历接口确定教学周；没有有效教学周时返回空结果和 `no-teaching-week`。
-
-接口取自 `/jwapp/sys/wdkb/modules/`：
-
-| 接口 | 用途 |
-|---|---|
-| `jshkcb/dqxnxq.do` | 当前学期 |
-| `jshkcb/dqzc.do` | 目标日期的教学周 |
-| `xskcb/xskcb.do` | 基础排课 |
-| `xskcb/xsdkkc.do` | 调课和停课 |
-| `xskcb/xswpkc.do` | 未排课课程 |
-
-按 `SKZC` 位图判断周次，按 `KBID` 删除调整涉及的原周次，再生成新安排；停课不生成新课。输出 `weeksText` 与有效位图一致。调课教师使用页面显示字段，新校区未提供时保留 `null`。
-
-主列表在 `items`，未排课课程在 `extraItems.unlisted`；`completeness` 标明基础排课数量、分页数及调课记录数。全学期列表中的同一课程可能因时间、地点或有效周次不同出现多项。
-
-### 📊 个人成绩
-
-```bash
-jnu-cli grade status --network direct
-jnu-cli grade list --network direct
-jnu-cli grade list --term 2025-2026-2 --network direct
-```
-
-接口为 `/jwapp/sys/cjcx/modules/cjcx/xscjcx.do`。查询有效成绩，关闭仅最高成绩限制，取得全部分页后再按学期筛选；默认不沿用网页最近两个学期的过滤。
-
-展示成绩来自 `XSZCJMC`，兼容等级与数值成绩；`numericScore` 保留 `ZCJ`，单科 `gradePoint` 来自 `XFJD`，缺失值不补零。累计 GPA 规则未核实，`gpa=null`。
-
-分页依据 `totalSize` 与实际累计条数，不使用偶尔为零的 `totalPage`。重复页、重复记录标识、总数变化和提前空页均返回错误，避免把不完整列表标为完整。
-
-### 📝 考试安排
-
-```bash
-jnu-cli exam status --network direct
-jnu-cli exam list --network direct
-jnu-cli exam list --term 2026-2027-1 --network direct
-```
-
-默认使用考试应用返回的当前学期。主列表请求将学期和排序包装为 `requestParamStr`，接口为 `/jwapp/sys/studentWdksapApp/WdksapController/cxxsksap.do`。
-
-此接口按学期一次返回数组，已核对的 `totalSize=-1` 不作为分页总数。保留尚未提供的考场、座位为 `null`；不因任务或发布时间标志为空而丢弃考试。`serverTime` 来自学校服务器时间。
-
-`conflictCheck.status=not-checked`、`hasConflicts=null`：考试冲突核验未适配，不能将该结果解释为没有冲突。此前页面附带的冲突接口返回业务错误，尚无成功样本。
-
-### 🎓 学业完成
-
-```bash
-jnu-cli completion status --network direct
-jnu-cli completion summary --network direct
-jnu-cli completion modules --network direct
-jnu-cli completion courses --module MODULE_CODE --network direct
-jnu-cli completion courses --module MODULE_CODE --state selected --network direct
-```
-
-将 `MODULE_CODE` 替换为 `completion modules` 返回的模块 `moduleCode`。可用 `--plan` 选择 `plans` 中的本人方案，不能传入其他学生身份或任意外部方案。主要接口位于 `/jwapp/sys/xywccx/modules/xywccx/`。
-
-先读取 `grpyfacx` 个人方案和 `cxxsscfa` 已有计算结果，再查询摘要和模块。已有结果返回 `calculation.state=completed` 和 `calculation.source=stored-result`；没有已有结果时返回 `calculation.state=not-calculated` 和原因。查询不触发重算。`--timeout` 指定查询总时限，默认 180 秒。
-
-`plan` 提供 `planCode`、`planName`、`requiredCredits`、`completedCredits`、`remainingCredits` 等通用字段。摘要中的 `storedSelectedCredits` 是已有结果的选课学分，`currentSelectedCredits` 来自页面补充查询；模块上的 `storedSelectedCredits` 保留已有模块结果。当前教学学期和选课学期分别读取。
-
-`modules` 返回扁平 `items` 和保留父子关系的 `tree`。模块课程先完整取得已计算列表与当前选课，按当前选课的课程号排除缓存侧重合，再追加全部当前选课行；同一课程号的多行关系不会合并丢失。当前选课的方案、模块字段为空时，关联关系来自已验证的请求上下文。
-
-`--state` 支持 `all`、`failed`、`passed`、`unread`、`pending`、`selected`，对应全部、未通过、通过、未修读、未修读待选、已选课。按合并后的完整列表筛选；`SFTG=4` 表示已选课，不依赖可能为空的 `SFXK`。`status` 使用 `completed`、`selected`、`not-taken`、`unknown`，原中文显示值保存在 `statusName`；`score` 保留原展示值，非数值状态不转换为零分。
-
-### 📚 培养方案
-
-```bash
-jnu-cli program list --page 1 --limit 10 --network direct
-jnu-cli program list --page 2 --network direct
-jnu-cli program item PLAN_CODE --network direct
-```
-
-将 `PLAN_CODE` 替换为列表的 `id` 或 `planCode`，详情使用位置参数。默认每页 10 条，`--limit` 指定每页条数，`--page` 指定页码，两者均为正整数；可用 `--keyword`、`--grade`、`--department`、`--major` 筛选。列表顶层返回 `total`、`page`、`pageSize`、`filters`、`items`，方案名称为 `title`；`completeness.scope=page` 只表示本页完整，不会默认下载全校方案。
-
-列表使用 `/jwapp/sys/qxfacx/modules/pyfacxepg/qxpyfacxzl.do`，保持已发布方案过滤。详情使用共享路径 `/jwapp/sys/jwpubapp/modules/pyfa/` 下的 `qxpyfacx`、`kzcx`、`kzkccx`、`faxqcx`，分别取得摘要、模块、课程关系和指导计划。
-
-详情返回 `summary`、`detail`、`modules` 和 `courses`，并保留指导计划与模块树。完整读取各组分页，保留模块 `KZH/FKZH` 层级、课程的模块关联及数值字段的空值。模块代码重复、层级循环或课程引用未返回模块时明确失败。
-
-### 📋 评教进度
-
-```bash
-jnu-cli evaluation summary --network direct
-jnu-cli evaluation summary --term 2026-2027-1 --network direct
-jnu-cli evaluation list --network direct
-jnu-cli evaluation list --state completed --network direct
-jnu-cli evaluation list --state all --network direct
-```
-
-默认学期来自评教配置 `PJXNXQ`，`--term` 可覆盖查询；不能直接沿用课表当前学期。接口位于 `/jwapp/sys/wspjyyapp/modules/xspj/`。
-
-`progress` 使用 `WPS/YPS/ZS` 的真实数值校验待评、已评和总数；总数为零时状态是 `no-tasks`。缺失字段、业务失败和不一致统计不会补零。`currentByType` 与 `historyByType` 分别保留来源不同的类别计数。
-
-列表默认待评，支持 `pending|completed|all`，当前范围明确为 `course-assessment`（课程评估，`PGLXDM=05`），保留页面的开放和发布过滤。记录是问卷或评教项，不能直接当作课程门数；课程号和课程名允许为空。
-
-列表保留问卷、批次、起止时间和是否已评，服务器时间供调用方参考。期末与随堂评教目前只提供分类计数，独立列表、非零待评的真实显示与截止状态尚未验收。程序不读取答案或提交评教。
-
-### 👤 本人个人信息
-
-```bash
-jnu-cli profile status --network direct
-jnu-cli profile show --network direct
-```
-
-从当前业务页读取本人身份，先以 `XH` 查询，再用返回的本人 `WID` 读取同一条档案；两次身份与记录标识必须一致。接口为 `/jwapp/sys/xjxxbg/modules/xsxxbgsq/cxxsjbxx.do`，不接受指定他人学号的参数。
-
-`profile` 只包含学号、姓名、院系、专业、方向、年级、入学年级、校区、班级、学生类别、培养层次、在籍、在校和学籍状态。编码字段同时保留 `code` 与学校的显示名称 `name`；班级使用 `BJMC`，空值保留 `null`。
-
-证件号、电话、邮箱、地址、银行卡等字段不进入结果；不输出原始档案。`status` 同样执行实际只读验证并返回上述白名单数据。
-
-### 🔢 JSON 与退出码
-
-成功返回 `{ "ok": true, "data": {}, "meta": {} }`，失败返回 `{ "ok": false, "error": {}, "meta": {} }`。`meta` 标明命令、学校、本科生角色、浏览器后端与网络选择。错误不附带原始业务记录或带临时票据的完整 URL。
-
-| 退出码 | 含义 |
-|---|---|
-| 0 | 命令成功；登录状态需另看 `loggedIn` |
-| 1 | 参数解析失败或其他未分类错误 |
-| 2 | 命令或动作未实现 |
-| 11 | 需要正常登录 |
-| 12 | 网络或教务服务不可用 |
-| 13 | 当前角色无权限 |
-| 15 | 浏览器不可用或档案被占用 |
-| 19 | 浏览器选择无效 |
-| 20 | 配置、页面、接口或完整性检查失败 |
-| 23 | 培养方案不存在或不属于本人 |
-| 24 | 学业完成查询超时 |
-| 25 | 模块不存在 |
-| 30 | 请求被限流 |
-| 39 | 等待本人登录超时 |
-
-课表历史学期查询的请求和转换已由合成测试覆盖，尚未做真实账户验收。课程认定不适配；修改资料、提交评教、重新计算学业结果等写操作不在命令范围内。
-
-### 🤖 供 AI Agent 调用
-
-以下步骤面向正在协助用户操作的 AI Agent；登录步骤需要用户在浏览器中完成。
-
-```bash
-npm install -g jnu-cli
-jnu-cli doctor
-jnu-cli browser status
-jnu-cli auth login
+jnu-cli browser use chrome
 jnu-cli auth status
+jnu-cli auth login
+jnu-cli course status
+jnu-cli course list
+jnu-cli course list --week 17 --weekday 2
 jnu-cli course today
+jnu-cli course today --date 2026-06-23
+jnu-cli program status
+jnu-cli program list --limit 5
+jnu-cli program item <id-or-planCode>
+jnu-cli grade status
+jnu-cli grade list
+jnu-cli grade list --term 2025-2026-1
+jnu-cli completion status
+jnu-cli completion summary
+jnu-cli completion modules
+jnu-cli completion courses --module <moduleCode>
+jnu-cli exam status
+jnu-cli exam list --term 2026-2027-1
+jnu-cli evaluation status
+jnu-cli evaluation summary
+jnu-cli evaluation list --state pending
+jnu-cli profile status
+jnu-cli profile show
 ```
 
-命令默认输出 JSON。成功返回 `ok`、`data` 和 `meta`，失败返回 `ok`、`error` 和 `meta`。检查登录态时应读取 `data.loggedIn`，查询失败时按错误码处理。字段含义与退出码见上方「JSON 与退出码」。
+`jnu-cli doctor` 是无 action 的环境诊断命令；其他业务命令遵循上述 `<domain> <action>` 形式。
+
+命令默认输出 JSON；`--help` 和 `--version` 输出文字。`--json` 不受支持。
+
+### ⚙️ 常用参数
+
+- `--headed`：状态检查和教务查询使用可见浏览器窗口，默认无界面。
+- `auth login --headless`：登录默认显示浏览器；此参数供已有会话的无界面验证使用。
+- `--url <entryUrl>`：覆盖认证或业务入口 URL，仅接受 HTTP/HTTPS。
+- `--network system|direct`：认证和教务命令的网络选择，默认 `system`。`direct` 只让本次 CLI 浏览器直连，不修改全局代理或 DNS，也不替代校园网络或 WebVPN。
+- `--term <termId>`：课表、成绩、考试和评教的学期筛选，格式为 `2026-2027-1` 或 `2026-2027-2`。
+- `course list --week <n> --weekday <1-7>`：周次为 1 至 60，星期一为 1、星期日为 7。
+- `course today --date YYYY-MM-DD`：查询指定日期，默认日期按 `Asia/Shanghai` 解释。
+- `auth login --timeout <seconds>`：等待本人登录的时限，默认 300 秒，范围 1 至 1800 秒。
+- `completion ... --timeout <seconds>`：学业完成查询总时限，默认 180 秒。
+- `browser status`：查看可用浏览器、当前选择和对应的 CLI profile。
+- `browser use <chrome|edge|chromium>`：选择浏览器；浏览器必须已安装。
+
+浏览器后端支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。`JNU_BROWSER` 优先于保存的选择；未指定时检测已安装浏览器。默认数据目录为 `~/.jnu-cli/`，可用 `JNU_CLI_HOME` 覆盖。各浏览器使用独立的 `browser-profiles/<browser>/`，同一档案的命令应顺序执行。
+
+### 🧾 JSON 包装结构
+
+成功：
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "command": "course list",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system"
+  }
+}
+```
+
+字段以当前 CLI 实际返回为准；业务响应和结构化错误写入 stdout，登录提示写入 stderr。`meta.backend` 为 `playwright`；`meta.school` 为 `jnu`，`meta.audience` 为 `undergraduate`。认证与环境命令的 `gateway` 为 `auto`，教务查询成功时为 `direct`；失败时为 `auto`。教务与认证命令在 `meta.network` 中保留网络选择，业务来源存在时附带 `meta.sourceUrl`。
+
+失败：
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "LOGIN_REQUIRED",
+    "message": "浏览器 profile 尚未登录。",
+    "hint": "运行 jnu-cli auth login 并在浏览器中完成登录。"
+  },
+  "meta": {
+    "command": "course list",
+    "gateway": "auto",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system"
+  }
+}
+```
+
+### 🚨 错误码
+
+- `BACKEND_UNAVAILABLE`：浏览器后端不可用。
+- `BROWSER_UNAVAILABLE`：当前选择的浏览器未安装、无法启动或档案被占用。
+- `BROWSER_SELECTION_INVALID`：浏览器选择不是 chrome、edge 或 chromium。
+- `BROWSER_CONFIG_INVALID`：保存的浏览器配置无效。
+- `AUTH_LOGIN_TIMEOUT`：本人登录流程在限定时间内没有完成。
+- `LOGIN_REQUIRED`：目标服务需要登录。
+- `NETWORK_REQUIRED`：当前网络无法访问目标服务，或目标服务暂时不可用。
+- `PERMISSION_DENIED`：当前账号或角色无权访问。
+- `PAGE_CHANGED`：页面结构、业务上下文或身份与预期不一致。
+- `API_ERROR`：接口业务失败或返回了不符合请求条件的记录。
+- `INCOMPLETE_DATA`：分页、记录数量或模块关系未通过完整性校验。
+- `RATE_LIMITED`：远端服务限制请求。
+- `PROGRAM_NOT_FOUND`：培养方案不存在，或不属于当前学生的个人方案。
+- `CALCULATION_TIMEOUT`：学业完成查询超时。
+- `MODULE_NOT_FOUND`：学业完成中找不到指定模块。
+- `UNSUPPORTED_ACTION`：命令或动作尚未实现。
+- `UNKNOWN_ERROR`：参数解析失败或未分类错误。
+
+### 🔢 退出码
+
+- `0`：命令成功；登录状态需另看 `data.loggedIn`。
+- `1`：参数解析失败或通用失败。
+- `2`：命令或动作未实现。
+- `10`：浏览器后端不可用。
+- `11`：需要登录。
+- `12`：目标服务网络不可达或暂时不可用。
+- `13`：无权访问。
+- `15`：浏览器不可用或档案被占用。
+- `19`：浏览器选择无效。
+- `20`：配置、页面、接口或数据完整性检查失败。
+- `23`：培养方案不存在或不属于本人。
+- `24`：学业完成查询超时。
+- `25`：模块不存在。
+- `30`：请求被限流。
+- `39`：等待本人登录超时。
+
+### 🩺 环境诊断 Schema
+
+`jnu-cli doctor` 只读取本机环境，不启动浏览器、不访问学校服务，也不创建配置或登录档案。`node.ok` 表示最低 Node.js 版本检查结果，`playwright.installed` 表示依赖能否加载，`browser.browsers` 列出浏览器可用性。命令成功只表示诊断已完成，仍需检查这些字段。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "cli": {
+      "name": "jnu-cli",
+      "version": "0.1.0"
+    },
+    "node": {
+      "version": "24.12.0",
+      "ok": true,
+      "minimumMajor": 20
+    },
+    "platform": {
+      "os": "linux",
+      "arch": "x64"
+    },
+    "home": {
+      "path": "/home/example/.jnu-cli"
+    },
+    "profile": {
+      "path": "/home/example/.jnu-cli/browser-profiles/chrome"
+    },
+    "playwright": {
+      "installed": true
+    },
+    "browser": {
+      "selected": {
+        "id": "chrome",
+        "label": "Google Chrome",
+        "channel": "chrome",
+        "source": "detected",
+        "profilePath": "/home/example/.jnu-cli/browser-profiles/chrome"
+      },
+      "browsers": {
+        "edge": {
+          "id": "edge",
+          "label": "Microsoft Edge",
+          "channel": "msedge",
+          "installed": false,
+          "profilePath": "/home/example/.jnu-cli/browser-profiles/edge"
+        },
+        "chrome": {
+          "id": "chrome",
+          "label": "Google Chrome",
+          "channel": "chrome",
+          "installed": true,
+          "profilePath": "/home/example/.jnu-cli/browser-profiles/chrome"
+        },
+        "chromium": {
+          "id": "chromium",
+          "label": "Playwright Chromium",
+          "channel": null,
+          "installed": false,
+          "profilePath": "/home/example/.jnu-cli/browser-profiles/chromium"
+        }
+      },
+      "channel": "chrome",
+      "profileMode": "persistent"
+    }
+  },
+  "meta": {
+    "command": "doctor",
+    "gateway": "auto",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate"
+  }
+}
+```
+
+### 🔑 认证与浏览器输出
+
+`jnu-cli auth status` 返回 `loggedIn`、`reason`、`profileExists`、`profilePath`，必要时给出 `hint`。未建立档案或需要重新登录时，仍可 `ok=true`、`loggedIn=false`；网络、权限或页面错误不会伪装成未登录。
+
+`jnu-cli auth login` 由本人在可见浏览器里完成统一身份认证。CLI 验证本科课表访问后自动关闭窗口，再重开同一档案验证会话可复用，成功返回 `loggedIn=true`、`persisted=true`，以及 `opened`、`closed`、`url`、`profilePath` 和 `backend`。
+
+`browser status` 返回 `selected` 和 `browsers`，结构同诊断结果中的对应字段。`browser use` 保存已安装浏览器的选择，返回 `id`、`label`、`channel`、`source`、`profilePath`；`source` 为 `saved`。浏览器选择不等于已经登录，切换后需检查对应档案的登录状态。
+
+### 📤 输出规则
+
+- JSON key 使用 `camelCase`。
+- 列表始终使用数组，即使为空。
+- 日期尽量使用 ISO 8601。
+- 业务响应的 stdout 保持为单个 JSON 结果；帮助和版本命令除外。
+- 不输出 Cookie、Token、临时认证票据或原始个人档案。课表和成绩不附加姓名、学号；本人信息查询只返回下述白名单字段，Agent 只回显本次请求所需内容。
+
+### 📅 我的课表列表 Schema
+
+`jnu-cli course list` 返回暨大本科教务的个人课表，不暴露姓名或学号。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "term": {
+      "id": "2025-2026-2",
+      "name": "2025-2026学年第二学期",
+      "year": "2025-2026",
+      "semester": "2",
+      "currentWeek": 16
+    },
+    "items": [
+      {
+        "courseCode": "COURSE-001",
+        "courseName": "示例课程",
+        "section": "01",
+        "teachers": [
+          "示例教师"
+        ],
+        "weeksText": "1-17周",
+        "weekday": 2,
+        "startSection": 3,
+        "endSection": 4,
+        "location": "示例教室",
+        "campus": "01",
+        "rawId": "teaching-class-001",
+        "weekMask": "11111111111111111",
+        "campusName": "示例校区",
+        "scheduleId": "schedule-001",
+        "adjusted": false
+      }
+    ],
+    "extraItems": {
+      "unlisted": []
+    },
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/wdkb/",
+    "filters": {},
+    "completeness": {
+      "complete": true,
+      "scheduledRows": 1,
+      "pages": 1,
+      "adjustmentRows": 0
+    }
+  },
+  "meta": {
+    "command": "course list",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/wdkb/"
+  }
+}
+```
+
+`jnu-cli course list` 可用 `--term <termId>`、`--week <n>` 和 `--weekday <1-7>` 过滤课表，其中星期一为 `1`、星期日为 `7`。`jnu-cli course today` 返回同样的课程 item 结构，但按上海时区日期和学校返回的教学周过滤；使用 `--date YYYY-MM-DD` 可查询指定日期。`jnu-cli course status` 只检查访问状态，返回 `loggedIn`、`reason`、`term` 和 `sourceUrl`。
+
+`list` 默认筛选当前教学周；学校没有提供当前教学周时，列表保留所读学期的排课。`today` 在没有有效教学周时返回空 `items` 和 `reason=no-teaching-week`。历史学期查询已有合成测试，尚未完成真实账户验收。
+
+`items` 已合并调课并移除停课对应周次；`weeksText` 与有效 `weekMask` 一致。`adjusted` 标记调整后的安排；新校区没有来源时保留 `null`。未排课课程在 `extraItems.unlisted`，`completeness` 表示基础排课分页与调课记录是否完整。
+
+### 📚 培养方案 Schema
+
+`jnu-cli program list` 返回已发布的全校培养方案摘要。可用 `--keyword`、`--grade`、`--department`、`--major`、`--page` 和 `--limit` 缩小结果范围。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "total": 1,
+    "page": 1,
+    "pageSize": 10,
+    "filters": {
+      "grade": "2025"
+    },
+    "items": [
+      {
+        "id": "program-001",
+        "planCode": "2025-050101-01",
+        "title": "2025级示例专业主修培养方案",
+        "grade": "2025",
+        "department": "示例学院",
+        "major": "示例专业",
+        "direction": null,
+        "minimumCredits": 160,
+        "durationYears": 4,
+        "degree": "文学学士",
+        "startYear": "2025-2026学年",
+        "startSemester": "第一学期",
+        "status": "99",
+        "published": true
+      }
+    ],
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/qxfacx/",
+    "pagination": {
+      "page": 1,
+      "pageSize": 10,
+      "total": 1,
+      "totalPages": 1,
+      "hasMore": false
+    },
+    "completeness": {
+      "complete": true,
+      "scope": "page"
+    }
+  },
+  "meta": {
+    "command": "program list",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/qxfacx/"
+  }
+}
+```
+
+`jnu-cli program status` 只检查访问状态，返回 `loggedIn`、`reason`、`total` 和 `sourceUrl`。
+
+`jnu-cli program item <id-or-planCode>` 返回一个已发布培养方案详情。参数使用 `program list` 返回的 `id` 或 `planCode`。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "summary": {
+      "id": "program-001",
+      "planCode": "2025-050101-01",
+      "title": "2025级示例专业主修培养方案",
+      "grade": "2025",
+      "department": "示例学院",
+      "major": "示例专业",
+      "minimumCredits": 160
+    },
+    "detail": {
+      "trainingObjectives": null,
+      "graduationRequirements": null,
+      "mainSubjects": [],
+      "coreCourses": [],
+      "notes": [],
+      "features": null
+    },
+    "modules": [
+      {
+        "id": "module-002",
+        "groupCode": "group-basic",
+        "parentGroupCode": null,
+        "name": "示例课程模块",
+        "type": "课组",
+        "category": "示例类别",
+        "courseNature": "必修",
+        "requiredCredits": 20,
+        "totalCredits": 20,
+        "totalHours": 360,
+        "courseCount": 6,
+        "order": 1
+      }
+    ],
+    "courses": [
+      {
+        "id": "course-001",
+        "groupCode": "group-basic",
+        "courseCode": "COURSE-001",
+        "courseName": "示例课程",
+        "credits": 3,
+        "hours": 54,
+        "termId": "2025-2026-1",
+        "termName": "2025-2026学年第一学期",
+        "recommendedSemester": 1,
+        "courseNature": "必修",
+        "examType": "考试",
+        "order": 1
+      }
+    ],
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/qxfacx/",
+    "guidance": [],
+    "completeness": {
+      "complete": true,
+      "modules": 1,
+      "courses": 1,
+      "guidance": 0
+    }
+  },
+  "meta": {
+    "command": "program item",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/qxfacx/"
+  }
+}
+```
+
+列表默认 `--page 1 --limit 10`；`page`、`limit` 均为正整数。`completeness.scope=page` 只表示本页完整，不会默认读取全校全部方案。`id` 没有来源时为 `null`，可以改用 `planCode`。
+
+详情中的模块保留父子关系，另有 `tree`；课程通过 `groupCode` 关联模块，`guidance` 为指导计划。`detail` 的文字字段无来源时为 `null`，列表字段为空数组，不补造培养目标或毕业要求。模块重复、层级循环或课程引用缺失模块时明确失败。详情还返回 `plan`、`items` 等辅助字段，与 `summary`、`courses` 对应。
+
+### 📊 成绩列表 Schema
+
+`jnu-cli grade list` 返回暨大本科教务的有效成绩记录，不暴露姓名或学号。
+
+使用 `--term <termId>` 过滤单个学期，例如 `--term 2025-2026-1`。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "items": [
+      {
+        "termId": "2025-2026-1",
+        "termName": "2025-2026学年第一学期",
+        "courseCode": "COURSE-001",
+        "courseName": "示例课程",
+        "courseNatureCode": "02",
+        "courseNature": "选修",
+        "credit": 2,
+        "earnedCredit": 2,
+        "score": "90",
+        "gradePoint": 3.5,
+        "section": "02",
+        "examDate": "2026-01-18",
+        "valid": true,
+        "rawId": "grade-001",
+        "numericScore": 90
+      }
+    ],
+    "terms": [
+      {
+        "termId": "2025-2026-1",
+        "termName": "2025-2026学年第一学期",
+        "itemCount": 1
+      }
+    ],
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/cjcx/",
+    "filters": {
+      "term": null,
+      "validOnly": true,
+      "highestOnly": false
+    },
+    "completeness": {
+      "complete": true,
+      "allTermRecords": 1,
+      "pages": 1
+    },
+    "gpa": null,
+    "gpaNote": "尚未核实累计或学期 GPA 规则，仅展示系统给出的单科绩点。"
+  },
+  "meta": {
+    "command": "grade list",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/cjcx/"
+  }
+}
+```
+
+`jnu-cli grade status` 只检查访问状态，返回 `loggedIn`、`reason`、`total`、`terms` 和 `sourceUrl`。
+
+默认读取全部学期的有效成绩，不沿用网页最近两个学期的过滤，也不只保留最高成绩。`score` 保留展示值，`numericScore` 和 `gradePoint` 保留学校提供的数值；缺失值不补零。`terms` 只提供学期标识、名称和 `itemCount`，不计算学期或累计 GPA、学分汇总、排名；`gpa=null`。
+
+### 🎓 学业完成 Schema
+
+学业完成只读取本人方案的已有计算结果，不触发重算。查询总时限默认 180 秒，可用 `--timeout <seconds>` 修改。使用 `--plan <planCode>` 选择本人 `plans` 中的 `code`。
+
+`jnu-cli completion summary` 返回培养方案层面的学分汇总。`completion modules` 额外返回模块行：
+
+```json
+{
+  "ok": true,
+  "data": {
+    "plan": {
+      "planCode": "plan-code",
+      "planName": "2025级示例专业主修培养方案",
+      "requiredCredits": 150,
+      "completedCredits": 90,
+      "selectedCredits": 100,
+      "actualCompletedCredits": 88,
+      "outsidePlanCredits": 2,
+      "remainingCredits": 60,
+      "note": null
+    },
+    "calculation": {
+      "state": "completed",
+      "source": "stored-result",
+      "calculatedAt": "2026-10-20 12:00:00"
+    },
+    "items": [
+      {
+        "moduleCode": "module-code",
+        "parentModuleCode": null,
+        "moduleName": "公共基础课程",
+        "moduleTypeCode": "01",
+        "courseCategoryCode": "01",
+        "requiredCredits": 20,
+        "completedCredits": 16,
+        "selectedCredits": 18,
+        "remainingCredits": 4,
+        "requiredCourseCount": 10,
+        "completedCourseCount": 8,
+        "passed": false,
+        "storedSelectedCredits": 18
+      }
+    ],
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xywccx/",
+    "plans": [
+      {
+        "code": "plan-code",
+        "name": "2025级示例专业主修培养方案"
+      }
+    ],
+    "summary": {
+      "requiredCredits": 150,
+      "completedCredits": 90,
+      "storedSelectedCredits": 100,
+      "currentSelectedCredits": 12
+    },
+    "currentTerm": {
+      "id": "2026-2027-1",
+      "name": "2026-2027学年第一学期"
+    },
+    "selectionTerm": {
+      "id": "2026-2027-1",
+      "name": "2026-2027学年第一学期"
+    },
+    "completeness": {
+      "complete": true,
+      "modules": 1,
+      "pages": 1
+    }
+  },
+  "meta": {
+    "command": "completion modules",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xywccx/"
+  }
+}
+```
+
+把返回的 `moduleCode` 传给 `jnu-cli completion courses --module <moduleCode>`。`items` 包含课程号、名称、`credit`、`hours`、`statusCode`、`state`、`status`、`statusName`、`passed`、`selected`、`score`、`numericScore`、`termId`、`nature`，以及 `planCode`、`moduleCode`、`source`。
+
+`status` 可能为 `completed`、`selected`、`not-taken` 或 `unknown`；原中文状态保存在 `statusName`。`not-taken` 表示方案候选课程，不保证当前开课或可选。`--state` 支持 `all`、`failed`、`passed`、`unread`、`pending`、`selected`，分别筛选全部、未通过、通过、未修读、未修读待选、已选课。非数值成绩不会转换为零分。
+
+课程合并已有结果与当前选课，同课程号的当前选课行全部保留，`source` 区分 `stored-result` 与 `current-selection`。方案与模块上的 `selectedCredits`、`storedSelectedCredits` 是已有结果，摘要的 `currentSelectedCredits` 是当前查询值；`currentTerm` 与 `selectionTerm` 分别表示教学学期和选课学期，不能混用。
+
+没有已有结果时返回 `calculation.state=not-calculated`、`summary=null`，并给出 `no-stored-result` 或 `no-personal-plan`；模块和课程列表为空。`status` 返回 `loggedIn`、`reason`、`calculation`、`sourceUrl`，仍需检查计算状态。
+
+查询超时返回 `CALCULATION_TIMEOUT`，`error.details.timeoutSeconds` 为本次时限。未知模块返回 `MODULE_NOT_FOUND`。
+
+### 📝 考试安排 Schema
+
+`jnu-cli exam list` 返回本人考试安排，默认学期来自考试应用，可用 `--term <termId>` 覆盖。`exam status` 返回同样的只读查询结构。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "term": {
+      "id": "2026-2027-1",
+      "name": "2026-2027学年第一学期"
+    },
+    "serverTime": "2026-10-22 12:00:00",
+    "items": [
+      {
+        "examCode": "exam-001",
+        "examName": "示例考试",
+        "courseCode": "COURSE-001",
+        "courseName": "示例课程",
+        "termId": "2026-2027-1",
+        "date": "2027-01-10",
+        "timeDisplay": "09:00-11:00",
+        "room": null,
+        "seat": null,
+        "needsArrangement": "1",
+        "timeArranged": "1",
+        "taskState": null,
+        "timePublished": null
+      }
+    ],
+    "conflictCheck": {
+      "status": "not-checked",
+      "hasConflicts": null
+    },
+    "completeness": {
+      "complete": true,
+      "scope": "term",
+      "records": 1
+    },
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/studentWdksapApp/"
+  },
+  "meta": {
+    "command": "exam list",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/studentWdksapApp/"
+  }
+}
+```
+
+`room`、`seat` 缺失时为 `null`；不因任务或发布标志为空丢弃考试。`serverTime` 来自学校。`conflictCheck.status=not-checked` 表示尚未核验冲突，`hasConflicts=null` 不能解释为没有冲突。
+
+### 📋 评教进度 Schema
+
+`jnu-cli evaluation summary` 和 `evaluation status` 返回 `term`、`progress`、`serverTime`、`currentByType`、`historyByType`、`sourceUrl`。学期来自评教配置，可用 `--term` 覆盖，不以课表学期代替。
+
+`jnu-cli evaluation list` 在摘要上增加 `filters`、`items`、`completeness`。默认待评，可用 `--state pending|completed|all` 选择。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "term": {
+      "id": "2026-2027-1",
+      "name": "2026-2027学年第一学期",
+      "configuredId": "2026-2027-1"
+    },
+    "progress": {
+      "pending": 1,
+      "completed": 0,
+      "total": 1,
+      "state": "pending"
+    },
+    "serverTime": "2026-10-22 12:00:00",
+    "currentByType": {
+      "courseAssessment": 1,
+      "endOfTerm": 0,
+      "classroom": 0
+    },
+    "historyByType": {
+      "courseAssessment": 2,
+      "endOfTerm": 0,
+      "classroom": 0
+    },
+    "filters": {
+      "state": "pending",
+      "assessmentType": "05"
+    },
+    "items": [
+      {
+        "questionnaireCode": "questionnaire-001",
+        "batchCode": "batch-001",
+        "questionnaireName": "示例课程评估",
+        "courseCode": null,
+        "courseName": null,
+        "startTime": "2026-10-20 00:00:00",
+        "endTime": "2026-10-30 23:59:59",
+        "evaluated": false
+      }
+    ],
+    "completeness": {
+      "complete": true,
+      "scope": "course-assessment",
+      "records": 1,
+      "pages": 1
+    },
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/wspjyyapp/"
+  },
+  "meta": {
+    "command": "evaluation list",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/wspjyyapp/"
+  }
+}
+```
+
+`progress` 区分待评、已评和总数，总数为零时 `state=no-tasks`。`currentByType` 与 `historyByType` 分别表示来源不同的类别统计。
+
+列表范围为 `course-assessment`（课程评估），每条记录是问卷或评教项，不能直接当成课程门数；课程号、课程名可以为空。期末和随堂评教目前只有类别计数，独立列表未适配；非零待评的真实页面显示与截止状态尚未验收。不读取答案或提交评教。
+
+### 👤 本人信息 Schema
+
+`jnu-cli profile show` 和 `profile status` 只读本人常用学籍信息，两次验证当前学生身份及记录标识一致；不接受他人学号参数。
+
+```json
+{
+  "ok": true,
+  "data": {
+    "profile": {
+      "studentId": "example-student",
+      "name": "示例同学",
+      "department": {
+        "code": "example-department",
+        "name": "示例学院"
+      },
+      "major": {
+        "code": "example-major",
+        "name": "示例专业"
+      },
+      "direction": {
+        "code": null,
+        "name": null
+      },
+      "grade": {
+        "code": "2025",
+        "name": "2025级"
+      },
+      "admissionGrade": {
+        "code": "2025",
+        "name": "2025级"
+      },
+      "campus": {
+        "code": "example-campus",
+        "name": "示例校区"
+      },
+      "className": "示例班级",
+      "studentCategory": {
+        "code": null,
+        "name": null
+      },
+      "trainingLevel": {
+        "code": null,
+        "name": null
+      },
+      "registered": {
+        "code": "1",
+        "name": "是"
+      },
+      "onCampus": {
+        "code": "1",
+        "name": "是"
+      },
+      "enrollmentStatus": {
+        "code": null,
+        "name": null
+      }
+    },
+    "verified": true,
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xjxxbg/"
+  },
+  "meta": {
+    "command": "profile show",
+    "gateway": "direct",
+    "backend": "playwright",
+    "school": "jnu",
+    "audience": "undergraduate",
+    "network": "system",
+    "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xjxxbg/"
+  }
+}
+```
+
+编码字段同时保留 `code` 和 `name`，缺失值为 `null`。证件号、电话、邮箱、地址、银行卡等不进入结果，不输出原始档案。
+
+### 🤖 Agent Skill
+
+配套 Skill 位于 [skills/jnu-cli-skill](skills/jnu-cli-skill/README.md)，随 npm 包发布。将该目录完整复制到 Codex 的 `~/.codex/skills/jnu-cli-skill/`；使用自定义 `CODEX_HOME` 时，复制到其 `skills/jnu-cli-skill/`。
+
+Skill 保留上游的命令路由、示例、错误处理和隐私边界，按已实现功能适配暨大。Agent 应顺序调用 CLI、解析默认 JSON，只基于返回字段作答；需要登录时由本人在浏览器中完成。
 
 ## 🧠 功能细节
 
@@ -290,6 +895,7 @@ jnu-cli/
 │   ├── profile.js           # 本人常用学籍信息
 │   ├── module-tree.js       # 模块层级检查
 │   └── format.js            # 数据格式化辅助
+├── skills/jnu-cli-skill/     # Agent Skill 与命令参考
 ├── tests/                   # 合成业务及 CLI 测试
 ├── scripts/                 # 项目检查与测试入口
 └── .github/ISSUE_TEMPLATE/   # 问题反馈模板

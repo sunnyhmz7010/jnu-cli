@@ -12,7 +12,7 @@ async function collect(directory) {
     else files.push(path);
   }
 }
-for (const directory of ['src/', 'tests/', 'scripts/', '.github/']) await collect(directory);
+for (const directory of ['src/', 'skills/', 'tests/', 'scripts/', '.github/']) await collect(directory);
 
 for (const path of files) {
   const bytes = await readFile(new URL(path, root));
