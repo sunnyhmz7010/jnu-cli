@@ -163,6 +163,12 @@ export async function login(options = {}) {
 export async function query(kind, options, callback) {
   return withBrowser(options, async (context) => {
     const page = await openApp(context, await enterPortal(context), kind);
-    return callback((path, form, name) => postGroup(page, path, form, name), safeSource(page.url()));
+    return callback((path, form, name) => postGroup(page, path, form, name), safeSource(page.url()), page);
   });
+}
+
+export async function currentStudentId(page) {
+  const id = await page.evaluate(() => typeof pageMeta === 'undefined' ? null : pageMeta.params?.USERID);
+  if (typeof id !== 'string' || !id.trim()) throw failure('PAGE_CHANGED', '业务页面没有提供当前学生身份，未尝试查询其他学生。');
+  return id;
 }

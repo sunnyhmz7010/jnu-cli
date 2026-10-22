@@ -42,6 +42,17 @@ export function groupTotal(group) {
   return total;
 }
 
+export function singleRow(group, name) {
+  if (group.rows.length !== 1) throw failure('PAGE_CHANGED', `接口 ${name} 未返回唯一记录。`);
+  return group.rows[0];
+}
+
+export function countValue(value, name) {
+  const result = typeof value === 'number' || (typeof value === 'string' && /^\d+$/.test(value)) ? Number(value) : NaN;
+  if (!Number.isSafeInteger(result) || result < 0) throw failure('PAGE_CHANGED', `统计字段 ${name} 缺失或格式异常。`);
+  return result;
+}
+
 // 不使用学校偶尔返回 0 的 totalPage，也不把第一页或重复页当成完整结果。
 export async function readAllPages(fetchPage, pageSize = 50) {
   const rows = [];

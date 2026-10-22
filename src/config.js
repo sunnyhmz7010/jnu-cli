@@ -5,7 +5,12 @@ export const ORIGIN = 'https://jw.jnu.edu.cn';
 export const PORTAL = `${ORIGIN}/new/index.html`;
 export const APPS = {
   course: { name: '我的课表', path: '/jwapp/sys/wdkb/' },
-  grade: { name: '成绩查询', path: '/jwapp/sys/cjcx/' }
+  grade: { name: '成绩查询', path: '/jwapp/sys/cjcx/' },
+  exam: { name: '我的考试安排', path: '/jwapp/sys/studentWdksapApp/' },
+  completion: { name: '学业完成查询', path: '/jwapp/sys/xywccx/' },
+  program: { name: '全校方案查询', path: '/jwapp/sys/qxfacx/' },
+  evaluation: { name: '评教应用', path: '/jwapp/sys/wspjyyapp/' },
+  profile: { name: '学生个人信息', path: '/jwapp/sys/xjxxbg/' }
 };
 
 export function homeDirectory(env = process.env) {

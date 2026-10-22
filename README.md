@@ -56,9 +56,18 @@ node src/cli.js course list --all-weeks --network direct --json
 node src/cli.js course list --week 7 --weekday 3 --network direct --json
 node src/cli.js course today --network direct --json
 node src/cli.js grade list --term 2025-2026-2 --network direct --json
+node src/cli.js exam list --network direct --json
+node src/cli.js completion summary --network direct --json
+node src/cli.js completion modules --network direct --json
+node src/cli.js program list --page 1 --network direct --json
+node src/cli.js evaluation summary --network direct --json
+node src/cli.js evaluation list --state completed --network direct --json
+node src/cli.js profile show --network direct --json
 ```
 
 默认课表查询当前教学周，成绩查询全部学期有效成绩。完整参数、字段含义和退出码见[命令说明](docs/commands.md)。
+
+模块课程使用 `completion modules` 返回的模块代码，方案详情使用 `program list` 返回的方案代码。评教默认学期由评教应用配置提供，可能与当前教学学期不同。
 
 默认登录档案位于 `~/.jnu-cli/browser-profiles/<browser>/`。可用 `JNU_CLI_HOME` 指定目录，`JNU_BROWSER=chrome|edge|chromium` 指定浏览器；不同浏览器使用各自档案，同一档案的命令应顺序执行。配置只保留本机浏览器选择，程序不保存账户密码，也不导出 Cookie。
 
@@ -85,7 +94,14 @@ jnu-cli/
 │   ├── browser.js           # 登录和正常门户导航
 │   ├── api.js               # 同源请求与分页完整性
 │   ├── course.js            # 个人课表和调课处理
-│   └── grade.js             # 个人成绩
+│   ├── grade.js             # 个人成绩
+│   ├── exam.js              # 考试安排
+│   ├── completion.js        # 学业完成和当前选课
+│   ├── program.js           # 培养方案
+│   ├── evaluation.js        # 评教进度
+│   ├── profile.js           # 本人常用学籍信息
+│   ├── module-tree.js       # 模块层级检查
+│   └── format.js            # 普通文字输出
 ├── tests/                   # 合成业务及 CLI 测试
 ├── scripts/                 # 项目检查与测试入口
 ├── docs/                    # 命令与接口说明
