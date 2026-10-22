@@ -27,7 +27,11 @@ function fixture({ cached = true } = {}) {
 test('读取已有学业结果，不触发重算，当前学期与选课学期分别读取', async () => {
   const { post, calls } = fixture();
   const result = await loadCompletion(post, { studentId: 'student-test', action: 'summary' });
-  assert.equal(result.calculation.state, 'stored-result');
+  assert.equal(result.calculation.state, 'completed');
+  assert.equal(result.calculation.source, 'stored-result');
+  assert.equal(result.plan.planCode, 'plan-test');
+  assert.equal(result.plan.requiredCredits, 160);
+  assert.equal(result.plan.remainingCredits, 152);
   assert.equal(result.summary.requiredCredits, 160);
   assert.equal(result.summary.storedSelectedCredits, 2);
   assert.equal(result.summary.currentSelectedCredits, 4);
@@ -45,6 +49,9 @@ test('按当前课程号排除缓存侧重合，保留当前选课多行及其�
   assert(current.every((row) => row.planCode === 'plan-test' && row.moduleCode === 'module-test'));
   assert(current.every((row) => row.numericScore === null));
   assert.equal(current.filter((row) => row.selected).length, 1);
+  assert.equal(current.find((row) => row.selected).status, 'selected');
+  assert.equal(result.module.moduleCode, 'module-test');
+  assert.equal(result.items.find((row) => row.courseCode === 'B').status, 'not-taken');
   assert.equal(calls.find((call) => call.name === 'cxsxkqk').form.XNXQDM, '2026-2027-2');
   assert.equal(result.completeness.mergedRows, 4);
   const selected = await loadCompletion(fixture().post, { studentId: 'student-test', action: 'courses', module: 'module-test', state: 'selected' });
@@ -59,10 +66,13 @@ test('无已有结果返回未计算，不误报计算中或自动发起新计�
   assert.equal(result.summary, null);
   assert.equal(calls.length, 2);
   assert(formatResult('completion summary', result).includes('暂无已有计算结果'));
+  const status = await loadCompletion(fixture({ cached: false }).post, { studentId: 'student-test', action: 'status' });
+  assert.equal(status.loggedIn, true);
+  assert.equal(status.calculation.state, 'not-calculated');
 });
 
 test('只能选择本人方案和已返回模块，课程状态不依赖 SFXK', async () => {
-  await assert.rejects(loadCompletion(fixture().post, { studentId: 'student-test', plan: 'foreign-plan' }), { code: 'PLAN_NOT_FOUND' });
+  await assert.rejects(loadCompletion(fixture().post, { studentId: 'student-test', plan: 'foreign-plan' }), { code: 'PROGRAM_NOT_FOUND' });
   await assert.rejects(loadCompletion(fixture().post, { studentId: 'student-test', action: 'courses', module: 'missing' }), { code: 'MODULE_NOT_FOUND' });
   const course = normalizeCompletionCourse({ SFTG: '4', SFXK: null, CJ: '0' }, { planCode: 'plan-test', moduleCode: 'module-test' });
   assert.equal(course.state, 'selected');

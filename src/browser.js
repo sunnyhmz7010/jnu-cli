@@ -4,6 +4,12 @@ import { assertBrowserAvailable, getBrowserSelection } from './browser-settings.
 import { APPS, ORIGIN, PORTAL, failure, isLoginUrl, safeSource } from './config.js';
 import { postGroup } from './api.js';
 
+export function browserLaunchOptions(options = {}) {
+  const args = ['--restore-last-session'];
+  if (options.network === 'direct') args.push('--no-proxy-server');
+  return { headless: options.headless ?? !options.login, args, timeout: 30000 };
+}
+
 export async function withBrowser(options, callback) {
   const selection = getBrowserSelection();
   if (!options.login && !existsSync(selection.profilePath)) throw failure('LOGIN_REQUIRED', '尚未建立暨大 CLI 的独立登录档案。', '运行 jnu-cli auth login；不会继承其他浏览器的登录态。');
@@ -14,18 +20,23 @@ export async function withBrowser(options, callback) {
   try {
     // 教务会话包含会话型 Cookie。正常恢复上次会话，才能在关窗后继续使用，
     // 不导出 Cookie，也不把临时会话强改成长期 Cookie。
-    // 登录、重启和查询统一显示正常页面；headed:false 留给内部对照。
-    const args = ['--restore-last-session'];
-    // 只影响此次 CLI 浏览器，不改系统代理，也不在失败后自动切换网络路径。
-    if (options.network === 'direct') args.push('--no-proxy-server');
-    context = await chromium.launchPersistentContext(selection.profilePath, { ...(selection.channel ? { channel: selection.channel } : {}), headless: options.login ? false : options.headed === false, args, timeout: 30000 });
+    context = await chromium.launchPersistentContext(selection.profilePath, { ...(selection.channel ? { channel: selection.channel } : {}), ...browserLaunchOptions(options) });
     const [, ...restored] = context.pages();
     for (const page of restored) await page.close();
   } catch {
     throw failure('BROWSER_UNAVAILABLE', '无法启动暨大 CLI 浏览器，可能已有命令占用此档案。', '关闭该 CLI 浏览器后重试；可用 jnu-cli browser status 检查浏览器。');
   }
-  try { return await callback(context, selection); }
-  finally { await context.close(); }
+  let timer;
+  try {
+    if (!options.completionTimeout) return await callback(context, selection);
+    return await Promise.race([callback(context, selection), new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        const error = failure('CALCULATION_TIMEOUT', '学业完成查询超时，未触发重新计算。');
+        error.details = { timeoutSeconds: options.completionTimeout };
+        reject(error);
+      }, options.completionTimeout * 1000);
+    })]);
+  } finally { clearTimeout(timer); await context.close(); }
 }
 
 export function assertServiceAvailable(status, text = '') {
@@ -39,9 +50,9 @@ export function assertServiceAvailable(status, text = '') {
   }
 }
 
-async function navigatePortal(page) {
+async function navigatePortal(page, url = PORTAL) {
   let response;
-  try { response = await page.goto(PORTAL, { waitUntil: 'domcontentloaded', timeout: 30000 }); }
+  try { response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 }); }
   catch { throw failure('NETWORK_REQUIRED', '无法连接暨大教务入口。', '请检查网络或待教务入口恢复后重试。'); }
   assertServiceAvailable(response?.status());
 }
@@ -57,9 +68,9 @@ function portalReady(state) {
   return url.origin === ORIGIN && url.pathname.startsWith('/new/') && state.text.includes('最近使用') && state.text.includes('任务中心');
 }
 
-export async function enterPortal(context) {
+export async function enterPortal(context, options = {}) {
   const page = context.pages()[0] ?? await context.newPage();
-  await navigatePortal(page);
+  await navigatePortal(page, options.url);
   const deadline = Date.now() + 25000;
   while (Date.now() < deadline) {
     const state = await readState(page);
@@ -96,6 +107,11 @@ export async function openApp(context, portal, kind) {
     await portal.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await portal.locator('.amp-app-card-hover-big:visible .amp-app-card-big-head span').filter({ hasText: appName }).click();
   }
+  return waitForApp(context, portal, kind);
+}
+
+async function waitForApp(context, portal, kind) {
+  const app = APPS[kind];
   const deadline = Date.now() + 30000;
   let entered = false;
   const selectedRoles = new Set();
@@ -124,45 +140,62 @@ export async function openApp(context, portal, kind) {
   throw failure('PAGE_CHANGED', `未能通过正常门户打开${app.name}。`);
 }
 
-async function probe(context) {
-  const portal = await enterPortal(context);
-  const page = await openApp(context, portal, 'course');
+export async function servicePage(context, kind, options) {
+  if (!options.url) return openApp(context, await enterPortal(context), kind);
+  const entry = new URL(options.url);
+  if ((entry.origin === ORIGIN && entry.pathname.startsWith('/new/')) || isLoginUrl(options.url)) {
+    return openApp(context, await enterPortal(context, options), kind);
+  }
+  const page = context.pages()[0] ?? await context.newPage();
+  await navigatePortal(page, options.url);
+  if (portalReady(await readState(page))) return openApp(context, page, kind);
+  return waitForApp(context, page, kind);
+}
+
+async function probe(context, options = {}) {
+  const page = await servicePage(context, 'course', options);
   const group = await postGroup(page, '/jwapp/sys/wdkb/modules/jshkcb/dqxnxq.do', {}, 'dqxnxq');
   if (!group.rows[0]?.DM) throw failure('PAGE_CHANGED', '业务页没有返回有效学期，不能确认登录。');
   return { loggedIn: true, reason: 'undergraduate-business-verified', sourceUrl: safeSource(page.url()) };
 }
 
 export async function authStatus(options = {}) {
-  try { return await withBrowser(options, async (context) => probe(context)); }
+  const selection = getBrowserSelection();
+  const profileExists = existsSync(selection.profilePath);
+  const profile = { profileExists, profilePath: selection.profilePath };
+  if (!profileExists) return { loggedIn: false, reason: 'profile-missing', ...profile, hint: '运行 jnu-cli auth login。' };
+  try { return { ...await withBrowser(options, async (context) => probe(context, options)), ...profile }; }
   catch (error) {
     if (error.code !== 'LOGIN_REQUIRED') throw error;
-    return { loggedIn: false, reason: 'login-required', hint: error.hint };
+    return { loggedIn: false, reason: 'login-required', ...profile, hint: error.hint };
   }
 }
 
 export async function login(options = {}) {
   const result = await withBrowser({ ...options, login: true }, async (context) => {
     const page = context.pages()[0] ?? await context.newPage();
-    await navigatePortal(page);
+    await navigatePortal(page, options.url);
     await readState(page);
     process.stderr.write('请在打开的独立浏览器窗口完成暨大登录；验证本科课表访问成功后会自动关闭窗口。\n');
     const deadline = Date.now() + (options.timeout ?? 300) * 1000;
     while (Date.now() < deadline) {
       if (page.isClosed()) throw failure('LOGIN_REQUIRED', '登录窗口已关闭，尚未完成业务验证。');
-      if (portalReady(await readState(page))) return probe(context);
+      const state = await readState(page);
+      if (portalReady(state)) return probe(context);
+      if (new URL(state.url).origin === ORIGIN && new URL(state.url).pathname.startsWith(APPS.course.path)) return probe(context, { url: state.url });
       await page.waitForTimeout(500);
     }
     throw failure('AUTH_LOGIN_TIMEOUT', '等待正常登录超时，请重新运行 auth login。');
   });
   // 关闭登录窗口后重新打开同一档案，业务仍可访问才宣告持久化成功。
-  const restored = await authStatus(options);
+  const restored = await authStatus({ ...options, headless: true });
   if (!restored.loggedIn) throw failure('LOGIN_REQUIRED', '登录窗口内验证成功，但重启浏览器后会话不可用。', '请重新运行 jnu-cli auth login；无需删除档案。');
-  return { ...result, persisted: true };
+  return { ...result, opened: true, closed: true, url: safeSource(options.url ?? PORTAL), profilePath: getBrowserSelection().profilePath, backend: 'playwright', persisted: true };
 }
 
 export async function query(kind, options, callback) {
   return withBrowser(options, async (context) => {
-    const page = await openApp(context, await enterPortal(context), kind);
+    const page = await servicePage(context, kind, options);
     return callback((path, form, name) => postGroup(page, path, form, name), safeSource(page.url()), page);
   });
 }

@@ -4,7 +4,7 @@ import { activeInWeek, mergeAdjustments, loadCourses } from '../src/course.js';
 import { loadGrades, normalizeGrade } from '../src/grade.js';
 import { groupTotal, readAllPages, requireGroup, postGroup } from '../src/api.js';
 import { homeDirectory, safeSource, shanghaiDate } from '../src/config.js';
-import { assertServiceAvailable, enterPortal } from '../src/browser.js';
+import { assertServiceAvailable, enterPortal, servicePage } from '../src/browser.js';
 
 const row = { KBID: 'schedule-a', WID: 'row-a', JXBID: 'class-a', KCH: 'TEST101', KCM: '合成课程', SKZC: '1111', ZCMC: '1-4周', SKXQ: 1, KSJC: 1, JSJC: 2, SKJS: '合成教师', JASMC: '测试教室', XXXQDM: 'test-campus' };
 const change = { KBID: 'schedule-a', SKZC: '0100', XSKZC: '0010', XSKXQ: 3, XKSJC: 5, XJSJC: 6, TKLXDM: '01', XJASMC: '新测试教室', XZCMC: '3周' };
@@ -86,6 +86,42 @@ test('显式历史学期读取全学期，校历无教学周时当天结果为�
   const today = await loadCourses(fixture.post, { today: true, date: '2026-10-19' });
   assert.equal(today.items.length, 0);
   assert.equal(today.reason, 'no-teaching-week');
+});
+
+test('课表默认筛选当前教学周，状态命令只返回访问状态和学期', async () => {
+  const result = await loadCourses(coursePost(5).post);
+  assert.equal(result.items.length, 0);
+  assert.deepEqual(result.filters, {});
+  assert.equal((await loadCourses(coursePost(5).post, { week: 1 })).items.length, 1);
+  const fixture = coursePost();
+  const status = await loadCourses(fixture.post, { action: 'status' });
+  assert.equal(status.loggedIn, true);
+  assert.equal(status.reason, 'ehall-course-page');
+  assert(!fixture.calls.some((call) => call.name === 'xskcb'));
+});
+
+test('--url 使用指定业务入口并保留网关错误检查', async () => {
+  const urls = [];
+  const entry = 'https://jw.jnu.edu.cn/jwapp/sys/cjcx/index.do';
+  const page = {
+    goto: async (url) => { urls.push(url); return { status: () => 200 }; },
+    url: () => entry,
+    locator: () => ({ innerText: async () => '合成成绩查询页面' }),
+    getByText: () => ({ count: async () => 0 }),
+    waitForLoadState: async () => {}, waitForFunction: async () => {}
+  };
+  const context = { pages: () => [page] };
+  assert.equal(await servicePage(context, 'grade', { url: entry }), page);
+  assert.deepEqual(urls, [entry]);
+  page.goto = async () => ({ status: () => 502 });
+  await assert.rejects(servicePage(context, 'grade', { url: entry }), { code: 'NETWORK_REQUIRED' });
+  const portal = {
+    goto: async (url) => { urls.push(url); return { status: () => 200 }; },
+    url: () => 'https://jw.jnu.edu.cn/new/index.html',
+    locator: () => ({ innerText: async () => '最近使用 任务中心' })
+  };
+  assert.equal(await enterPortal({ pages: () => [portal] }, { url: 'https://icas.jnu.edu.cn/cas/login' }), portal);
+  assert.equal(urls.at(-1), 'https://icas.jnu.edu.cn/cas/login');
 });
 
 test('元数据与业务错误不能当作空数组', () => {

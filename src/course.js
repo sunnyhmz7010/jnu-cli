@@ -61,6 +61,7 @@ export async function loadCourses(post, options = {}, sourceUrl) {
   const weekGroup = await post(prefix + 'jshkcb/dqzc.do', { XN: year, XQ: semester, RQ: date }, 'dqzc');
   term.currentWeek = number(weekGroup.rows[0]?.ZC);
   if (term.currentWeek !== null && term.currentWeek <= 0) term.currentWeek = null;
+  if (options.action === 'status') return { loggedIn: true, reason: 'ehall-course-page', term, sourceUrl };
   const list = await readAllPages((paging) => post(prefix + 'xskcb/xskcb.do', { XNXQDM: id, ...paging }, 'xskcb'));
   const changes = await post(prefix + 'xskcb/xsdkkc.do', { XNXQDM: id }, 'xsdkkc');
   const unlisted = await post(prefix + 'xskcb/xswpkc.do', { XNXQDM: id }, 'xswpkc');
@@ -68,12 +69,13 @@ export async function loadCourses(post, options = {}, sourceUrl) {
     if (groupTotal(group) !== group.rows.length) throw failure('INCOMPLETE_DATA', '调课或未排课列表不完整，未输出完整课表标记。');
   }
   const allRows = mergeAdjustments(list.rows, changes.rows);
-  const week = options.week ?? (options.allWeeks || (options.term && !options.today) ? null : term.currentWeek);
-  const weekday = options.today ? new Date(`${date}T00:00:00Z`).getUTCDay() || 7 : options.weekday;
-  const noTeachingWeek = week === null && !options.allWeeks && !(options.term && !options.today);
+  const week = options.week ?? term.currentWeek;
+  const weekday = options.weekday ?? (options.today ? new Date(`${date}T00:00:00Z`).getUTCDay() || 7 : undefined);
+  const noTeachingWeek = options.today && week === null;
   const items = noTeachingWeek ? [] : allRows.filter((row) => activeInWeek(row, week) && (!weekday || Number(row.SKXQ) === weekday)).map(normalizeCourse);
   items.sort((a, b) => a.weekday - b.weekday || a.startSection - b.startSection || String(a.courseCode).localeCompare(String(b.courseCode)));
-  return { term, ...(options.today ? { date, weekday } : {}), filters: { week, ...(weekday ? { weekday } : {}) },
+  return { term, ...(options.today ? { date, weekday, currentWeek: term.currentWeek } : {}),
+    filters: { ...(options.term ? { term: options.term } : {}), ...(options.week || (options.today && week !== null) ? { week } : {}), ...(weekday ? { weekday } : {}) },
     items, extraItems: { unlisted: unlisted.rows.map(normalizeCourse) },
     completeness: { complete: true, scheduledRows: list.total, pages: list.pages, adjustmentRows: changes.rows.length },
     ...(noTeachingWeek ? { reason: 'no-teaching-week' } : {}), sourceUrl };

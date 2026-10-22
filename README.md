@@ -22,7 +22,7 @@
 | 模块 | 实现的功能 | 示例命令 |
 |---|---|---|
 | 浏览器与认证 | 检查浏览器和当前登录状态，复用本机独立登录档案 | `jnu-cli browser status`<br>`jnu-cli auth status` |
-| 个人课表 | 查询当前教学周、全学期或当天课程，处理调课与停课 | `jnu-cli course list`<br>`jnu-cli course today` |
+| 个人课表 | 按教学周、星期或日期查询个人课程，处理调课与停课 | `jnu-cli course list`<br>`jnu-cli course today` |
 | 个人成绩 | 查询全部学期有效成绩，按学期筛选，展示单科绩点 | `jnu-cli grade list` |
 | 考试安排 | 查询考试时间、考场和座位信息 | `jnu-cli exam list` |
 | 学业进度 | 查看培养方案已有的学分完成结果、模块和课程修读状态 | `jnu-cli completion summary`<br>`jnu-cli completion modules` |
@@ -30,7 +30,7 @@
 | 评教进度 | 查看评教统计和待评、已评的课程评估项 | `jnu-cli evaluation summary`<br>`jnu-cli evaluation list` |
 | 个人信息 | 查询本人的院系、专业、班级、校区和学籍状态等常用信息 | `jnu-cli profile show` |
 
-查询命令添加 `--json` 可输出结构化结果，完整参数与字段说明见下方「使用说明」。
+命令默认输出结构化 JSON，`--json` 保留为兼容参数，完整参数与字段说明见下方「使用说明」。
 
 ## ⚡ 快速开始
 
@@ -56,15 +56,15 @@ jnu-cli course today
 
 ## 📖 使用说明
 
-安装后使用 `jnu-cli` 运行，执行 `jnu-cli --help` 查看命令。默认输出简明文字，添加 `--json` 获取结构化结果。支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。
+安装后使用 `jnu-cli` 运行，执行 `jnu-cli --help` 查看命令。通用调用约定对齐 [szu-cli CLI 契约](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md)。命令默认输出 JSON，`--json` 是兼容参数；`--help` 和 `--version` 输出文字。支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。
 
 ### 🔑 登录与浏览器
 
 ```bash
-jnu-cli browser status --json
-jnu-cli browser use edge --json
-jnu-cli auth login --timeout 900 --network direct --json
-jnu-cli auth status --network direct --json
+jnu-cli browser status
+jnu-cli browser use edge
+jnu-cli auth login --timeout 900 --network direct
+jnu-cli auth status --network direct
 ```
 
 `browser status` 只检查浏览器与配置，不建立登录档案。`browser use` 保存选择，不安装浏览器。`JNU_BROWSER` 的优先级高于保存的选择；未指定时检测已安装浏览器。Chromium 需要本人事先安装 Playwright 对应的浏览器，程序不会自动下载。
@@ -73,7 +73,7 @@ jnu-cli auth status --network direct --json
 
 登录默认等待 300 秒，`--timeout` 可设为 1 至 1800 秒。本人正常完成认证后，CLI 进入本科课表并验证业务响应，再关闭和重开档案验证，成功才返回 `persisted=true`。状态命令在未登录时成功返回 `loggedIn=false`，查询则返回 `LOGIN_REQUIRED`。
 
-当前统一使用可见浏览器，`--headed` 参数保留兼容。程序使用浏览器正常的恢复上次会话功能，不导出、复制或延长学校 Cookie。
+登录默认打开可见浏览器，可用 `--headless` 复用已有会话；状态检查与业务查询默认无界面，添加 `--headed` 可显示浏览器。`--url` 可覆盖认证或对应业务入口。程序仍使用独立档案和正常的会话恢复功能，不导出、复制或延长学校 Cookie。
 
 ### 🌐 网络选项
 
@@ -89,15 +89,15 @@ jnu-cli auth status --network direct --json
 ### 📅 个人课表
 
 ```bash
-jnu-cli course status --network direct --json
-jnu-cli course list --network direct --json
-jnu-cli course list --week 7 --weekday 3 --network direct --json
-jnu-cli course list --all-weeks --network direct --json
-jnu-cli course list --term 2025-2026-2 --network direct --json
-jnu-cli course today --date 2026-10-22 --network direct --json
+jnu-cli course status --network direct
+jnu-cli course list --network direct
+jnu-cli course list --week 7 --weekday 3 --network direct
+jnu-cli course list --weekday 3 --network direct
+jnu-cli course list --term 2025-2026-2 --network direct
+jnu-cli course today --date 2026-10-22 --network direct
 ```
 
-`status` 与列表查询都实际访问课表业务。默认返回当前教学周；`--all-weeks` 返回全学期，显式 `--term` 且没有 `--week` 时也返回该学期全部周次。`--week` 与 `--all-weeks` 互斥；星期取周一至周日的 1 至 7。
+`status` 核验课表访问，返回 `loggedIn`、`reason`、`term` 和 `sourceUrl`。`list` 默认筛选当前教学周；可用 `--term` 选择学期，`--week` 指定周次，`--weekday` 指定周一至周日的 1 至 7。
 
 日期按 `Asia/Shanghai` 解释。当天或指定日期查询向学校传递目标日期，由校历接口确定教学周；没有有效教学周时返回空结果和 `no-teaching-week`。
 
@@ -118,9 +118,9 @@ jnu-cli course today --date 2026-10-22 --network direct --json
 ### 📊 个人成绩
 
 ```bash
-jnu-cli grade status --network direct --json
-jnu-cli grade list --network direct --json
-jnu-cli grade list --term 2025-2026-2 --network direct --json
+jnu-cli grade status --network direct
+jnu-cli grade list --network direct
+jnu-cli grade list --term 2025-2026-2 --network direct
 ```
 
 接口为 `/jwapp/sys/cjcx/modules/cjcx/xscjcx.do`。查询有效成绩，关闭仅最高成绩限制，取得全部分页后再按学期筛选；默认不沿用网页最近两个学期的过滤。
@@ -132,9 +132,9 @@ jnu-cli grade list --term 2025-2026-2 --network direct --json
 ### 📝 考试安排
 
 ```bash
-jnu-cli exam status --network direct --json
-jnu-cli exam list --network direct --json
-jnu-cli exam list --term 2026-2027-1 --network direct --json
+jnu-cli exam status --network direct
+jnu-cli exam list --network direct
+jnu-cli exam list --term 2026-2027-1 --network direct
 ```
 
 默认使用考试应用返回的当前学期。主列表请求将学期和排序包装为 `requestParamStr`，接口为 `/jwapp/sys/studentWdksapApp/WdksapController/cxxsksap.do`。
@@ -146,45 +146,45 @@ jnu-cli exam list --term 2026-2027-1 --network direct --json
 ### 🎓 学业完成
 
 ```bash
-jnu-cli completion status --network direct --json
-jnu-cli completion summary --network direct --json
-jnu-cli completion modules --network direct --json
-jnu-cli completion courses --module MODULE_CODE --network direct --json
-jnu-cli completion courses --module MODULE_CODE --state selected --network direct --json
+jnu-cli completion status --network direct
+jnu-cli completion summary --network direct
+jnu-cli completion modules --network direct
+jnu-cli completion courses --module MODULE_CODE --network direct
+jnu-cli completion courses --module MODULE_CODE --state selected --network direct
 ```
 
-将 `MODULE_CODE` 替换为 `completion modules` 返回的模块 `code`。可用 `--plan` 选择 `plans` 中的本人方案，不能传入其他学生身份或任意外部方案。主要接口位于 `/jwapp/sys/xywccx/modules/xywccx/`。
+将 `MODULE_CODE` 替换为 `completion modules` 返回的模块 `moduleCode`。可用 `--plan` 选择 `plans` 中的本人方案，不能传入其他学生身份或任意外部方案。主要接口位于 `/jwapp/sys/xywccx/modules/xywccx/`。
 
-先读取 `grpyfacx` 个人方案和 `cxxsscfa` 已有计算结果，再查询摘要和模块。不触发重算，也不等待未经验证的重算进度接口。没有已有结果时返回 `calculation.state=not-calculated` 和原因，不能把它当作正在计算。
+先读取 `grpyfacx` 个人方案和 `cxxsscfa` 已有计算结果，再查询摘要和模块。已有结果返回 `calculation.state=completed` 和 `calculation.source=stored-result`；没有已有结果时返回 `calculation.state=not-calculated` 和原因。查询不触发重算。`--timeout` 指定查询总时限，默认 180 秒。
 
-摘要中的 `storedSelectedCredits` 是已有结果的选课学分，`currentSelectedCredits` 来自页面补充查询；模块上的 `storedSelectedCredits` 保留已有模块结果。当前教学学期和选课学期分别读取。
+`plan` 提供 `planCode`、`planName`、`requiredCredits`、`completedCredits`、`remainingCredits` 等通用字段。摘要中的 `storedSelectedCredits` 是已有结果的选课学分，`currentSelectedCredits` 来自页面补充查询；模块上的 `storedSelectedCredits` 保留已有模块结果。当前教学学期和选课学期分别读取。
 
 `modules` 返回扁平 `items` 和保留父子关系的 `tree`。模块课程先完整取得已计算列表与当前选课，按当前选课的课程号排除缓存侧重合，再追加全部当前选课行；同一课程号的多行关系不会合并丢失。当前选课的方案、模块字段为空时，关联关系来自已验证的请求上下文。
 
-`--state` 支持 `all`、`failed`、`passed`、`unread`、`pending`、`selected`，对应全部、未通过、通过、未修读、未修读待选、已选课。按合并后的完整列表筛选；`SFTG=4` 表示已选课，不依赖可能为空的 `SFXK`。`score` 保留原展示值，非数值状态不转换为零分。
+`--state` 支持 `all`、`failed`、`passed`、`unread`、`pending`、`selected`，对应全部、未通过、通过、未修读、未修读待选、已选课。按合并后的完整列表筛选；`SFTG=4` 表示已选课，不依赖可能为空的 `SFXK`。`status` 使用 `completed`、`selected`、`not-taken`、`unknown`，原中文显示值保存在 `statusName`；`score` 保留原展示值，非数值状态不转换为零分。
 
 ### 📚 培养方案
 
 ```bash
-jnu-cli program list --page 1 --page-size 12 --network direct --json
-jnu-cli program list --page 2 --network direct --json
-jnu-cli program item --code PLAN_CODE --network direct --json
+jnu-cli program list --page 1 --limit 10 --network direct
+jnu-cli program list --page 2 --network direct
+jnu-cli program item PLAN_CODE --network direct
 ```
 
-将 `PLAN_CODE` 替换为列表的方案 `code`。默认每页 12 条，`--page-size` 支持 1 至 100；`pagination` 标明总数、当前页与是否有下一页，`completeness.scope=page` 只表示本页完整，不会默认下载全校方案。
+将 `PLAN_CODE` 替换为列表的 `id` 或 `planCode`，详情使用位置参数。默认每页 10 条，`--limit` 指定每页条数，`--page` 指定页码，两者均为正整数；可用 `--keyword`、`--grade`、`--department`、`--major` 筛选。列表顶层返回 `total`、`page`、`pageSize`、`filters`、`items`，方案名称为 `title`；`completeness.scope=page` 只表示本页完整，不会默认下载全校方案。
 
 列表使用 `/jwapp/sys/qxfacx/modules/pyfacxepg/qxpyfacxzl.do`，保持已发布方案过滤。详情使用共享路径 `/jwapp/sys/jwpubapp/modules/pyfa/` 下的 `qxpyfacx`、`kzcx`、`kzkccx`、`faxqcx`，分别取得摘要、模块、课程关系和指导计划。
 
-详情完整读取各组分页，保留模块 `KZH/FKZH` 层级、课程的模块关联及数值字段的空值。模块代码重复、层级循环或课程引用未返回模块时明确失败。
+详情返回 `summary`、`detail`、`modules` 和 `courses`，并保留指导计划与模块树。完整读取各组分页，保留模块 `KZH/FKZH` 层级、课程的模块关联及数值字段的空值。模块代码重复、层级循环或课程引用未返回模块时明确失败。
 
 ### 📋 评教进度
 
 ```bash
-jnu-cli evaluation summary --network direct --json
-jnu-cli evaluation summary --term 2026-2027-1 --network direct --json
-jnu-cli evaluation list --network direct --json
-jnu-cli evaluation list --state completed --network direct --json
-jnu-cli evaluation list --state all --network direct --json
+jnu-cli evaluation summary --network direct
+jnu-cli evaluation summary --term 2026-2027-1 --network direct
+jnu-cli evaluation list --network direct
+jnu-cli evaluation list --state completed --network direct
+jnu-cli evaluation list --state all --network direct
 ```
 
 默认学期来自评教配置 `PJXNXQ`，`--term` 可覆盖查询；不能直接沿用课表当前学期。接口位于 `/jwapp/sys/wspjyyapp/modules/xspj/`。
@@ -198,8 +198,8 @@ jnu-cli evaluation list --state all --network direct --json
 ### 👤 本人个人信息
 
 ```bash
-jnu-cli profile status --network direct --json
-jnu-cli profile show --network direct --json
+jnu-cli profile status --network direct
+jnu-cli profile show --network direct
 ```
 
 从当前业务页读取本人身份，先以 `XH` 查询，再用返回的本人 `WID` 读取同一条档案；两次身份与记录标识必须一致。接口为 `/jwapp/sys/xjxxbg/modules/xsxxbgsq/cxxsjbxx.do`，不接受指定他人学号的参数。
@@ -215,13 +215,17 @@ jnu-cli profile show --network direct --json
 | 退出码 | 含义 |
 |---|---|
 | 0 | 命令成功；登录状态需另看 `loggedIn` |
-| 2 | 参数无效或功能未实现 |
+| 1 | 参数解析失败或其他未分类错误 |
+| 2 | 命令或动作未实现 |
 | 11 | 需要正常登录 |
 | 12 | 网络或教务服务不可用 |
 | 13 | 当前角色无权限 |
 | 15 | 浏览器不可用或档案被占用 |
 | 19 | 浏览器选择无效 |
-| 20 | 配置、页面、接口、完整性检查失败，或方案/模块不存在 |
+| 20 | 配置、页面、接口或完整性检查失败 |
+| 23 | 培养方案不存在或不属于本人 |
+| 24 | 学业完成查询超时 |
+| 25 | 模块不存在 |
 | 30 | 请求被限流 |
 | 39 | 等待本人登录超时 |
 
@@ -233,18 +237,18 @@ jnu-cli profile show --network direct --json
 
 ```bash
 npm install -g jnu-cli
-jnu-cli browser status --json
-jnu-cli auth login --json
-jnu-cli auth status --json
-jnu-cli course today --json
+jnu-cli browser status
+jnu-cli auth login
+jnu-cli auth status
+jnu-cli course today
 ```
 
-命令默认输出简明文字；添加 `--json` 后，成功返回 `ok`、`data` 和 `meta`，失败返回 `ok`、`error` 和 `meta`。检查登录态时应读取 `data.loggedIn`，查询失败时按错误码处理。字段含义与退出码见上方「JSON 与退出码」。
+命令默认输出 JSON；`--json` 为兼容参数。成功返回 `ok`、`data` 和 `meta`，失败返回 `ok`、`error` 和 `meta`。检查登录态时应读取 `data.loggedIn`，查询失败时按错误码处理。字段含义与退出码见上方「JSON 与退出码」。
 
 ## 🧠 功能细节
 
 - 登录态保存在本机：后续命令复用 `~/.jnu-cli/browser-profiles/<browser>/` 下的登录态。可用 `JNU_CLI_HOME` 指定存储目录；同一档案的命令应顺序执行。
-- 通过正常网页访问业务：使用 Playwright 打开独立浏览器窗口，经过学校统一身份认证和本科教务门户进入对应服务，再在业务页中执行同源查询。登录、状态检查和业务查询都会显示浏览器窗口。
+- 通过正常网页访问业务：使用 Playwright 打开独立浏览器窗口，经过学校统一身份认证和本科教务门户进入对应服务，再在业务页中执行同源查询。登录默认显示浏览器窗口，状态检查和业务查询默认无界面，可用 `--headed` 显示。
 - 按环境选择网络：默认沿用系统网络；代理链路出现 502 时，可在登录或查询命令中添加 `--network direct` 让本次 CLI 浏览器直连，例如 `jnu-cli auth login --network direct`。网络选择仅影响此次浏览器，后续命令使用适合当前环境的同一选项。
 
 ## 🧱 技术栈
@@ -273,7 +277,7 @@ jnu-cli/
 │   ├── evaluation.js        # 评教进度
 │   ├── profile.js           # 本人常用学籍信息
 │   ├── module-tree.js       # 模块层级检查
-│   └── format.js            # 普通文字输出
+│   └── format.js            # 数据格式化辅助
 ├── tests/                   # 合成业务及 CLI 测试
 ├── scripts/                 # 项目检查与测试入口
 └── .github/ISSUE_TEMPLATE/   # 问题反馈模板

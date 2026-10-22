@@ -29,6 +29,7 @@ export async function loadGrades(post, options = {}, sourceUrl) {
     if (!terms.has(item.termId)) terms.set(item.termId, { termId: item.termId, termName: item.termName, itemCount: 0 });
     terms.get(item.termId).itemCount += 1;
   }
+  if (options.action === 'status') return { loggedIn: true, reason: 'ehall-grade-page', total: items.length, terms: [...terms.values()], sourceUrl };
   return { items, terms: [...terms.values()], filters: { term: options.term ?? null, validOnly: true, highestOnly: false },
     completeness: { complete: true, allTermRecords: result.total, pages: result.pages },
     gpa: null, gpaNote: '尚未核实累计或学期 GPA 规则，仅展示系统给出的单科绩点。', sourceUrl };
