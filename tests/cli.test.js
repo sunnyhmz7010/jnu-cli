@@ -20,33 +20,33 @@ test('暨大入口保留帮助，未知命令按契约返回 UNSUPPORTED_ACTION'
   assert(result.stdout.includes('jnu-cli grade'));
   assert(result.stdout.includes('暨南大学本科生版'));
   for (const command of [['recognition', 'list'], ['profile', 'edit'], ['evaluation', 'submit'], ['completion', 'recalculate']]) {
-    const rejected = run([...command, '--json']);
+    const rejected = run(command);
     assert.equal(rejected.status, 2);
     assert.equal(JSON.parse(rejected.stdout).error.code, 'UNSUPPORTED_ACTION');
   }
 });
 
 test('不存在独立档案时状态为未登录，查询给出 LOGIN_REQUIRED', () => {
-  assert.equal(JSON.parse(run(['auth', 'status', '--json']).stdout).data.loggedIn, false);
-  const direct = JSON.parse(run(['auth', 'status', '--network', 'direct', '--json']).stdout);
+  const direct = JSON.parse(run(['auth', 'status', '--network', 'direct']).stdout);
   assert.equal(direct.data.loggedIn, false);
   assert.equal(direct.meta.network, 'direct');
   const defaultOutput = run(['auth', 'status']);
   assert.equal(defaultOutput.stderr, '');
-  assert.deepEqual(JSON.parse(defaultOutput.stdout), JSON.parse(run(['auth', 'status', '--json']).stdout));
+  assert.equal(JSON.parse(defaultOutput.stdout).ok, true);
+  assert.equal(JSON.parse(defaultOutput.stdout).data.loggedIn, false);
   assert.equal(JSON.parse(defaultOutput.stdout).data.reason, 'profile-missing');
   assert.equal(JSON.parse(defaultOutput.stdout).data.profileExists, false);
   for (const domain of ['course', 'grade', 'exam', 'program', 'evaluation']) {
-    const result = run([domain, 'list', '--json']);
+    const result = run([domain, 'list']);
     assert.equal(result.status, 11);
     assert.equal(JSON.parse(result.stdout).error.code, 'LOGIN_REQUIRED');
     assert.equal(JSON.parse(result.stdout).meta.school, 'jnu');
   }
-  for (const args of [['completion', 'summary'], ['profile', 'show']]) assert.equal(run([...args, '--json']).status, 11);
+  for (const args of [['completion', 'summary'], ['profile', 'show']]) assert.equal(run(args).status, 11);
 });
 
 test('非法参数在打开浏览器前返回 JSON，按上游实际行为使用 UNKNOWN_ERROR 和退出码 1', () => {
-  for (const args of [['course', 'list', '--week', '0'], ['course', 'list', '--week', '1.5'], ['course', 'list', '--all-weeks'], ['course', 'today', '--date', '2026-02-30'], ['course', 'today', '--date', '2026-99-01'], ['grade', 'list', '--term', '2026-2026-1'], ['grade', 'list', '--week', '2'], ['auth', 'status', '--url', 'file:///private'], ['auth', 'login', '--network', 'invalid'], ['course', 'list', '--network'], ['browser', 'status', '--network', 'direct'],
+  for (const args of [['auth', 'status', '--json'], ['browser', 'status', '--json'], ['program', 'item', 'plan-a', '--json'], ['course', 'list', '--week', '0'], ['course', 'list', '--week', '1.5'], ['course', 'list', '--all-weeks'], ['course', 'today', '--date', '2026-02-30'], ['course', 'today', '--date', '2026-99-01'], ['grade', 'list', '--term', '2026-2026-1'], ['grade', 'list', '--week', '2'], ['auth', 'status', '--url', 'file:///private'], ['auth', 'login', '--network', 'invalid'], ['course', 'list', '--network'], ['browser', 'status', '--network', 'direct'],
     ['program', 'item'], ['program', 'item', '--code', 'plan-a'], ['program', 'item', 'plan-a', 'extra'], ['program', 'list', '--page', '0'], ['program', 'list', '--limit', '0'], ['program', 'list', '--page-size', '10'], ['completion', 'courses'], ['completion', 'courses', '--module', 'module-a', '--state', 'invalid'], ['evaluation', 'list', '--state', 'selected'], ['profile', 'show', '--student-id', 'OTHER']]) {
     const result = run(args);
     assert.equal(result.status, 1, result.stdout + result.stderr);
@@ -57,7 +57,7 @@ test('非法参数在打开浏览器前返回 JSON，按上游实际行为使用
 });
 
 test('共同参数使用上游契约，方案详情接受位置参数', () => {
-  assert.equal(parseOptions('program', 'item', ['plan-a', '--json']).target, 'plan-a');
+  assert.equal(parseOptions('program', 'item', ['plan-a']).target, 'plan-a');
   const options = parseOptions('program', 'list', ['--limit', '5', '--page', '2', '--keyword', '计算机', '--grade', '2025级', '--department', '学院', '--major', '专业']);
   assert.equal(options.limit, 5);
   assert.equal(options.page, 2);

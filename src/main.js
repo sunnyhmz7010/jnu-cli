@@ -20,22 +20,22 @@ const help = `jnu-cli 暨南大学本科生版
 
 用法：
   jnu-cli auth login [--url 入口] [--headless] [--timeout 秒]
-  jnu-cli auth status [--headed] [--json]
-  jnu-cli browser status [--json]
-  jnu-cli browser use chrome|edge|chromium [--json]
+  jnu-cli auth status [--headed]
+  jnu-cli browser status
+  jnu-cli browser use chrome|edge|chromium
   jnu-cli course status|list [--term 学期] [--week 周次] [--weekday 1..7] [--headed]
-  jnu-cli course today [--date YYYY-MM-DD] [--term 学期] [--headed] [--json]
-  jnu-cli grade status|list [--term 学期] [--headed] [--json]
-  jnu-cli exam status|list [--term 学期] [--json]
-  jnu-cli completion status|summary|modules [--plan 个人方案代码] [--json]
-  jnu-cli completion courses --module 模块代码 [--plan 个人方案代码] [--state all|failed|passed|unread|pending|selected] [--json]
+  jnu-cli course today [--date YYYY-MM-DD] [--term 学期] [--headed]
+  jnu-cli grade status|list [--term 学期] [--headed]
+  jnu-cli exam status|list [--term 学期]
+  jnu-cli completion status|summary|modules [--plan 个人方案代码]
+  jnu-cli completion courses --module 模块代码 [--plan 个人方案代码] [--state all|failed|passed|unread|pending|selected]
   jnu-cli program status|list [--keyword 关键词] [--grade 年级] [--department 院系] [--major 专业] [--page 页码] [--limit 条数]
   jnu-cli program item <id-or-planCode>
-  jnu-cli evaluation status|summary [--term 学期] [--json]
-  jnu-cli evaluation list [--term 学期] [--state pending|completed|all] [--json]
-  jnu-cli profile status|show [--json]
+  jnu-cli evaluation status|summary [--term 学期]
+  jnu-cli evaluation list [--term 学期] [--state pending|completed|all]
+  jnu-cli profile status|show
 
-命令默认输出 JSON；--json 为兼容参数。--help 和 --version 输出文字。
+命令默认输出 JSON。--help 和 --version 输出文字。
 课表默认当前教学周；--week 与 --weekday 可筛选周次和星期。
 日期使用 Asia/Shanghai。成绩默认全部学期的有效成绩，不计算累计 GPA。
 登录默认显示浏览器；查询默认无界面，可用 --headed 显示浏览器。
@@ -61,7 +61,6 @@ export function parseOptions(domain, action, args) {
   }
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
-    if (arg === '--json') continue;
     if (arg === '--headed' && domain !== 'browser' && !(domain === 'auth' && action === 'login')) { options.headless = false; continue; }
     if (arg === '--headless' && domain === 'auth' && action === 'login') { options.headless = true; continue; }
     if (!allowed?.includes(arg) || !args[index + 1] || args[index + 1].startsWith('--')) throw failure('UNKNOWN_ERROR', `不支持的参数或缺少参数值：${arg}`);

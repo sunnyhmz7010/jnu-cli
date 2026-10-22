@@ -30,7 +30,7 @@
 | 评教进度 | 查看评教统计和待评、已评的课程评估项 | `jnu-cli evaluation summary`<br>`jnu-cli evaluation list` |
 | 个人信息 | 查询本人的院系、专业、班级、校区和学籍状态等常用信息 | `jnu-cli profile show` |
 
-命令默认输出结构化 JSON，`--json` 保留为兼容参数，完整参数与字段说明见下方「使用说明」。
+命令默认输出结构化 JSON，完整参数与字段说明见下方「使用说明」。
 
 ## ⚡ 快速开始
 
@@ -56,7 +56,7 @@ jnu-cli course today
 
 ## 📖 使用说明
 
-安装后使用 `jnu-cli` 运行，执行 `jnu-cli --help` 查看命令。通用调用约定对齐 [szu-cli CLI 契约](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md)。命令默认输出 JSON，`--json` 是兼容参数；`--help` 和 `--version` 输出文字。支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。
+安装后使用 `jnu-cli` 运行，执行 `jnu-cli --help` 查看命令。通用调用约定对齐 [szu-cli CLI 契约](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md)。命令默认输出 JSON；`--help` 和 `--version` 输出文字。支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。
 
 ### 🔑 登录与浏览器
 
@@ -243,7 +243,7 @@ jnu-cli auth status
 jnu-cli course today
 ```
 
-命令默认输出 JSON；`--json` 为兼容参数。成功返回 `ok`、`data` 和 `meta`，失败返回 `ok`、`error` 和 `meta`。检查登录态时应读取 `data.loggedIn`，查询失败时按错误码处理。字段含义与退出码见上方「JSON 与退出码」。
+命令默认输出 JSON。成功返回 `ok`、`data` 和 `meta`，失败返回 `ok`、`error` 和 `meta`。检查登录态时应读取 `data.loggedIn`，查询失败时按错误码处理。字段含义与退出码见上方「JSON 与退出码」。
 
 ## 🧠 功能细节
 
