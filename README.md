@@ -13,74 +13,128 @@
 
 ## ✨ 为什么做这个项目
 
+`jnu-cli` 是面向暨南大学网页服务的 agent-friendly CLI。
 
+它把常用校园网页能力整理成稳定命令和结构化 JSON 输出，同时复用本机持久化浏览器登录态，不保存账号密码。
+
+目前围绕本科教务系统，将课表、成绩、考试安排和学业进度等查询放到同一个命令入口中，方便本人在终端使用，也方便 AI Agent 在完成登录后按需调用。
 
 ## 🚀 核心能力
 
+| 模块 | 实现的功能 | 示例命令 |
+|---|---|---|
+| 浏览器与认证 | 检查浏览器和当前登录状态，复用本机独立登录档案 | `jnu-cli browser status`<br>`jnu-cli auth status` |
+| 个人课表 | 查询当前教学周、全学期或当天课程，处理调课与停课 | `jnu-cli course list`<br>`jnu-cli course today` |
+| 个人成绩 | 查询全部学期有效成绩，按学期筛选，展示单科绩点 | `jnu-cli grade list` |
+| 考试安排 | 查询考试时间、考场和座位信息 | `jnu-cli exam list` |
+| 学业进度 | 查看培养方案已有的学分完成结果、模块和课程修读状态 | `jnu-cli completion summary`<br>`jnu-cli completion modules` |
+| 培养方案 | 分页查询已发布方案，读取方案详情、课程模块和指导计划 | `jnu-cli program list --page 1` |
+| 评教进度 | 查看评教统计和待评、已评的课程评估项 | `jnu-cli evaluation summary`<br>`jnu-cli evaluation list` |
+| 个人信息 | 查询本人的院系、专业、班级、校区和学籍状态等常用信息 | `jnu-cli profile show` |
 
+查询命令添加 `--json` 可输出结构化结果，完整参数与字段说明见[命令说明](docs/commands.md)。
 
 ## ⚡ 快速开始
 
 ### 📋 前置要求
 
 - Node.js 20 及以上版本和 npm。
-- 已安装的 Microsoft Edge 或 Google Chrome。程序会检测本机浏览器，也可显式选择。
-- 可正常访问暨大本科教务系统的网络和本人本科账户。
+- 已安装的 Microsoft Edge 或 Google Chrome，以及可显示浏览器窗口的桌面环境。
+- 可正常访问暨大本科教务系统的网络和本人本科学生账户。
 
 ### 📦 安装与运行
 
 ```bash
-git clone https://github.com/sunnyhmz7010/jnu-cli.git
-cd jnu-cli
-npm ci
-node src/cli.js browser status --json
-node src/cli.js auth login --network direct --json
-node src/cli.js course list --network direct --json
-node src/cli.js grade list --network direct --json
+npm install -g jnu-cli
+jnu-cli browser status
+jnu-cli auth login
+jnu-cli auth status
+jnu-cli course today
 ```
 
-这是源码运行方式，尚未发布 npm 包。仓库设置为 `private`，避免误发布。也可使用 `npm run jnu-cli -- <参数>`。
+也可免全局安装运行，例如 `npx jnu-cli@latest --help`。
 
-登录时会打开可见浏览器，由本人完成统一身份认证。验证业务访问后窗口自动关闭，再打开同一档案检查会话；返回 `persisted=true` 才表示重启复用验证成功。学校会话仍可能到期，到期后重新运行登录命令。
-
-`--network direct` 适用于本机代理解析导致认证链路出现 502 的情况，仅影响本次 CLI 浏览器。默认省略该参数时沿用系统网络；需要代理才能访问的环境请使用默认值或 `--network system`。
+`auth login` 会打开一个持久化浏览器 profile。你在正常网页里完成统一身份认证后，CLI 会验证本科课表访问，再关闭并重新打开同一档案，确认登录态可复用后返回成功。学校会话到期后重新运行登录命令即可。
 
 ## 📖 使用说明
 
+**选择浏览器与检查登录态**
+
 ```bash
-node src/cli.js --help
-node src/cli.js browser use edge --json
-node src/cli.js auth status --network direct --json
-node src/cli.js auth login --timeout 900 --network direct --json
-node src/cli.js course list --all-weeks --network direct --json
-node src/cli.js course list --week 7 --weekday 3 --network direct --json
-node src/cli.js course today --network direct --json
-node src/cli.js grade list --term 2025-2026-2 --network direct --json
-node src/cli.js exam list --network direct --json
-node src/cli.js completion summary --network direct --json
-node src/cli.js completion modules --network direct --json
-node src/cli.js program list --page 1 --network direct --json
-node src/cli.js evaluation summary --network direct --json
-node src/cli.js evaluation list --state completed --network direct --json
-node src/cli.js profile show --network direct --json
+jnu-cli --help
+jnu-cli browser status
+jnu-cli browser use edge
+jnu-cli auth login --timeout 900
+jnu-cli auth status
 ```
 
-默认课表查询当前教学周，成绩查询全部学期有效成绩。完整参数、字段含义和退出码见[命令说明](docs/commands.md)。
+当前支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。浏览器选择顺序为 `JNU_BROWSER` 环境变量、`browser use` 保存的选择、自动检测；不同浏览器使用各自的独立 CLI profile。
 
-模块课程使用 `completion modules` 返回的模块代码，方案详情使用 `program list` 返回的方案代码。评教默认学期由评教应用配置提供，可能与当前教学学期不同。
+**查询课表、成绩与考试**
 
-默认登录档案位于 `~/.jnu-cli/browser-profiles/<browser>/`。可用 `JNU_CLI_HOME` 指定目录，`JNU_BROWSER=chrome|edge|chromium` 指定浏览器；不同浏览器使用各自档案，同一档案的命令应顺序执行。配置只保留本机浏览器选择，程序不保存账户密码，也不导出 Cookie。
+```bash
+jnu-cli course list
+jnu-cli course list --week 7 --weekday 3
+jnu-cli course list --all-weeks
+jnu-cli course today
+jnu-cli grade list
+jnu-cli grade list --term 2025-2026-2
+jnu-cli exam list
+```
+
+默认课表查询当前教学周，`--all-weeks` 查看全学期；星期使用 1 至 7 表示周一至周日。成绩默认查询全部学期的有效成绩，考试安排默认查询考试应用的当前学期。
+
+**查看学业进度与培养方案**
+
+```bash
+jnu-cli completion summary
+jnu-cli completion modules
+jnu-cli program list --page 1 --page-size 12
+```
+
+模块课程使用 `completion courses --module` 配合 `completion modules` 返回的模块 `code` 查询，可用 `--state` 筛选修读状态。方案详情使用 `program item --code` 配合 `program list` 返回的方案 `code` 查询。
+
+**查看评教进度与个人信息**
+
+```bash
+jnu-cli evaluation summary
+jnu-cli evaluation list
+jnu-cli evaluation list --state completed
+jnu-cli profile show
+```
+
+评教列表默认显示待评的课程评估项，`--state completed` 查看已评项，`--state all` 查看全部。默认学期由评教应用配置提供，可能与当前教学学期不同。
+
+**供 AI Agent 调用**
+
+以下步骤面向正在协助用户操作的 AI Agent；登录步骤需要用户在浏览器中完成。
+
+```bash
+npm install -g jnu-cli
+jnu-cli browser status --json
+jnu-cli auth login --json
+jnu-cli auth status --json
+jnu-cli course today --json
+```
+
+命令默认输出简明文字；添加 `--json` 后，成功返回 `ok`、`data` 和 `meta`，失败返回 `ok`、`error` 和 `meta`。检查登录态时应读取 `data.loggedIn`，查询失败时按错误码处理。字段含义与退出码见[命令说明](docs/commands.md#json-与退出码)。
 
 ## 🧠 功能细节
 
+- **登录态保存在本机**：后续命令复用 `~/.jnu-cli/browser-profiles/<browser>/` 下的登录态。可用 `JNU_CLI_HOME` 指定存储目录；同一档案的命令应顺序执行。
+- **通过正常网页访问业务**：使用 Playwright 打开独立浏览器窗口，经过学校统一身份认证和本科教务门户进入对应服务，再在业务页中执行同源查询。登录、状态检查和业务查询都会显示浏览器窗口。
+- **按环境选择网络**：默认沿用系统网络；代理链路出现 502 时，可在登录或查询命令中添加 `--network direct` 让本次 CLI 浏览器直连，例如 `jnu-cli auth login --network direct`。网络选择仅影响此次浏览器，后续命令使用适合当前环境的同一选项。
+- **保留业务数据含义**：课表按有效周次处理调课与停课；成绩保留数值、等级和单科绩点；学业进度读取学校已有计算结果；分页查询校验总数与重复记录。更详细的接口和数据口径见[命令说明](docs/commands.md)。
+- **只读取当前所需信息**：学业完成查询不触发重算，评教查询不提交问卷，个人信息查询只输出本人常用学籍字段。
 
+不收集账号密码，不绕过登录、验证码、校园网络限制、访问控制或频率限制。不把 Cookie、浏览器 profile、截图、HAR、trace 等本地敏感文件提交到 Git。
 
 ## 🧱 技术栈
 
 - 语言：JavaScript，Node.js 20+，ES Modules。
 - 浏览器：Playwright 1.61.0，使用持久化本地档案。
 - 测试：Node.js 内置测试运行器，全部夹具使用合成数据。
-- 目标平台：有可见浏览器的桌面环境；已验收 Windows Edge。
+- 目标平台：支持 Chrome、Edge 或 Playwright Chromium 的桌面环境；已验收 Windows Edge。
 
 ## 🗂️ 项目结构
 
@@ -112,16 +166,24 @@ jnu-cli/
 
 ### 🧰 环境
 
-- Node.js >= 20
+- Node.js >= 20 和 npm。
+- 真实登录与查询需要可用浏览器、网络和本人账户；自动化测试使用合成数据。
 
 ### ⚙️ 命令
 
 ```bash
+git clone https://github.com/sunnyhmz7010/jnu-cli.git
+cd jnu-cli
 npm ci
+npm run jnu-cli -- --help
 npm test
 npm run check
 npm pack --dry-run --ignore-scripts
 ```
+
+源码入口为 `node src/cli.js`，也可使用 `npm run jnu-cli -- <参数>`。安装后的命令与源码入口使用同一套参数。
+
+欢迎提交功能建议、Bug 报告和文档改进。通过 [GitHub Issues](https://github.com/sunnyhmz7010/jnu-cli/issues) 反馈前，请先搜索已有问题，并说明运行环境、复现命令、预期结果和实际结果；日志与截图请先移除个人信息。提交 PR 时保持改动聚焦，同步更新受影响的命令文档，并附上验证结果。
 
 ## 🔐 安全报告
 

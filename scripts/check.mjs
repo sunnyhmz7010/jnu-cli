@@ -35,5 +35,5 @@ for (const path of files) {
 const manifest = JSON.parse(await readFile(new URL('package.json', root), 'utf8'));
 assert.equal(manifest.name, 'jnu-cli');
 assert.deepEqual(manifest.bin, { 'jnu-cli': 'src/cli.js' });
-assert.equal(manifest.private, true);
+assert.notEqual(manifest.private, true, 'npm 包必须允许发布');
 console.log(`检查通过：${files.length} 个项目文件，语法、格式、文档链接与独立入口一致。`);
