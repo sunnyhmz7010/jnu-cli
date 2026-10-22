@@ -37,26 +37,73 @@
 
 - Node.js 20 及以上版本和 npm。
 - 已安装的 Microsoft Edge 或 Google Chrome，以及可显示浏览器窗口的桌面环境。
-- 可正常访问暨大本科教务系统的网络和本人本科学生账户。
+- 可正常访问暨大本科教务系统的网络和本人本科学生账户。（默认使用系统代理，可在命令中添加 `--network direct` 让本次 CLI 浏览器直连。网络选择仅影响此次浏览器，后续命令使用适合当前环境的同一选项。）
 
 ### 📦 安装与运行
 
+#### 从 npm 安装
+
 ```bash
 npm install -g jnu-cli
-jnu-cli doctor
-jnu-cli browser status
-jnu-cli auth login
-jnu-cli auth status
-jnu-cli course today
 ```
 
-也可免全局安装运行，例如 `npx jnu-cli@latest --help`。
+安装后可直接使用 `jnu-cli` 命令。
 
-`auth login` 会打开一个持久化浏览器 profile。你在正常网页里完成统一身份认证后，CLI 会验证本科课表访问，再关闭并重新打开同一档案，确认登录态可复用后返回成功。学校会话到期后重新运行登录命令即可。
+#### 免安装运行
+
+```bash
+npx jnu-cli@latest
+```
+
+#### 检查运行环境
+
+```bash
+jnu-cli doctor
+```
+
+#### 查看浏览器状态
+
+```bash
+jnu-cli browser status
+```
+
+#### 登录
+
+```bash
+jnu-cli auth login
+```
+
+`auth login` 会打开一个持久化浏览器 profile。请用户手动完成暨南大学统一身份认证。学校会话到期后重新运行登录命令即可。
 
 ### 🤖 Agent Skill
 
-配套 Skill 位于 [skills/jnu-cli-skill](skills/jnu-cli-skill/README.md)，随 npm 包发布。将该目录完整复制到 Codex 的 `~/.codex/skills/jnu-cli-skill/`；使用自定义 `CODEX_HOME` 时，复制到其 `skills/jnu-cli-skill/`。
+配套 Skill 位于 [skills/jnu-cli-skill](skills/jnu-cli-skill/README.md)，随 npm 包发布。将整个 `jnu-cli-skill` 目录复制到你所用 AI Agent 能识别的 skills 目录中。
+
+#### 推荐通用放置路径
+
+`.agents/skills/` 是目前被 Codex、Gemini CLI、Cursor、OpenCode 等多个 Agent 共同支持的跨客户端标准路径。
+
+```text
+~/.agents/skills/jnu-cli-skill/
+```
+
+#### Codex 全局目录示例
+
+```text
+~/.codex/skills/jnu-cli-skill/
+```
+
+使用自定义 `CODEX_HOME` 时：
+
+```text
+$CODEX_HOME/skills/jnu-cli-skill/
+```
+
+#### Claude Code 全局目录示例
+
+```text
+~/.claude/skills/jnu-cli-skill/
+```
 
 ## 📖 使用说明
 
