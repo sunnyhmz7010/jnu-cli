@@ -21,6 +21,7 @@
 
 | 模块 | 实现的功能 | 示例命令 |
 |---|---|---|
+| 环境诊断 | 检查 CLI、Node.js、Playwright、浏览器和档案目录 | `jnu-cli doctor` |
 | 浏览器与认证 | 检查浏览器和当前登录状态，复用本机独立登录档案 | `jnu-cli browser status`<br>`jnu-cli auth status` |
 | 个人课表 | 按教学周、星期或日期查询个人课程，处理调课与停课 | `jnu-cli course list`<br>`jnu-cli course today` |
 | 个人成绩 | 查询全部学期有效成绩，按学期筛选，展示单科绩点 | `jnu-cli grade list` |
@@ -44,6 +45,7 @@
 
 ```bash
 npm install -g jnu-cli
+jnu-cli doctor
 jnu-cli browser status
 jnu-cli auth login
 jnu-cli auth status
@@ -56,7 +58,15 @@ jnu-cli course today
 
 ## 📖 使用说明
 
-安装后使用 `jnu-cli` 运行，执行 `jnu-cli --help` 查看命令。通用调用约定对齐 [szu-cli CLI 契约](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md)。命令默认输出 JSON；`--help` 和 `--version` 输出文字。支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。
+安装后使用 `jnu-cli` 运行，执行 `jnu-cli --help` 查看已支持命令。命令形式和公共字段参考 [szu-cli CLI 契约](https://github.com/AwesomeHou/szu-cli/blob/406e5627494e404203752746fbc97ddc3a06a932/docs/cli-contract.md)。命令默认输出 JSON；`--help` 和 `--version` 输出文字。支持 Google Chrome、Microsoft Edge 和已安装的 Playwright Chromium。
+
+### 🩺 环境诊断
+
+```bash
+jnu-cli doctor
+```
+
+诊断只读取本机环境，返回 `cli`、`node`、`platform`、`home`、`profile`、`playwright` 和 `browser`。`node.ok` 表示 Node.js 是否满足最低版本，`playwright.installed` 表示依赖是否可加载，`browser` 列出浏览器可用性和当前选择。目录路径只作展示，检查不会创建配置或登录档案。登录状态使用 `jnu-cli auth status` 检查。
 
 ### 🔑 登录与浏览器
 
@@ -237,6 +247,7 @@ jnu-cli profile show --network direct
 
 ```bash
 npm install -g jnu-cli
+jnu-cli doctor
 jnu-cli browser status
 jnu-cli auth login
 jnu-cli auth status
@@ -265,6 +276,7 @@ jnu-cli/
 ├── src/
 │   ├── cli.js               # 唯一 CLI 入口
 │   ├── main.js              # 参数、路由和输出
+│   ├── doctor.js            # 本机环境诊断
 │   ├── config.js            # 暨大入口与本地目录
 │   ├── browser-settings.js  # 独立浏览器配置
 │   ├── browser.js           # 登录和正常门户导航

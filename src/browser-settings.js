@@ -1,9 +1,10 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { chromium } from 'playwright';
+import { createRequire } from 'node:module';
 import { failure, homeDirectory } from './config.js';
 
+const require = createRequire(import.meta.url);
 const definitions = {
   edge: { label: 'Microsoft Edge', channel: 'msedge' },
   chrome: { label: 'Google Chrome', channel: 'chrome' },
@@ -27,7 +28,11 @@ function savedBrowser(env) {
 
 export function browserInstalled(id, { env = process.env, platform = process.platform } = {}) {
   validateBrowser(id);
-  if (id === 'chromium') return existsSync(chromium.executablePath());
+  if (id === 'chromium') {
+    // 依赖缺失时仍允许 doctor 读取环境，普通查询会另行检查可用浏览器。
+    try { return existsSync(require('playwright').chromium.executablePath()); }
+    catch (error) { if (error.code === 'MODULE_NOT_FOUND') return false; throw error; }
+  }
   // Windows 环境变量名不区分大小写，测试或调用方传入普通对象时保留同样语义。
   const variable = (name) => env[Object.keys(env).find((key) => key.toUpperCase() === name)];
   let candidates;

@@ -9,6 +9,7 @@ import { loadCompletion } from './completion.js';
 import { loadPrograms } from './program.js';
 import { loadEvaluation } from './evaluation.js';
 import { loadProfile } from './profile.js';
+import { getDoctorReport } from './doctor.js';
 
 const writeJson = (value) => process.stdout.write(JSON.stringify(value, null, 2) + '\n');
 const commands = { auth: ['login', 'status'], browser: ['status', 'use'], course: ['status', 'list', 'today'], grade: ['status', 'list'],
@@ -19,6 +20,7 @@ const loaders = { course: loadCourses, grade: loadGrades, exam: loadExams, compl
 const help = `jnu-cli 暨南大学本科生版
 
 用法：
+  jnu-cli doctor
   jnu-cli auth login [--url 入口] [--headless] [--timeout 秒]
   jnu-cli auth status [--headed]
   jnu-cli browser status
@@ -104,9 +106,15 @@ export async function run(argv) {
   if (argv.includes('--help') || !argv.length || argv[0] === 'help') { process.stdout.write(help); return; }
   if (argv.includes('--version') || argv.includes('-v')) { process.stdout.write(JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')).version + '\n'); return; }
   const [domain, action, ...rest] = argv;
-  const command = `${domain} ${action ?? ''}`.trim();
-  const meta = { command, gateway: domain === 'auth' || domain === 'browser' ? 'auto' : 'direct', backend: 'playwright', school: 'jnu', audience: 'undergraduate' };
+  const command = domain === 'doctor' ? 'doctor' : `${domain} ${action ?? ''}`.trim();
+  const meta = { command, gateway: ['auth', 'browser', 'doctor'].includes(domain) ? 'auto' : 'direct', backend: 'playwright', school: 'jnu', audience: 'undergraduate' };
   try {
+    if (domain === 'doctor') {
+      if (argv.length !== 1) throw failure('UNKNOWN_ERROR', 'doctor 不接受额外参数。');
+      const packageInfo = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+      writeJson({ ok: true, data: await getDoctorReport({ packageInfo }), meta });
+      return;
+    }
     if (!commands[domain]?.includes(action)) throw failure('UNSUPPORTED_ACTION', '该命令尚未适配，请运行 jnu-cli --help。');
     const browser = domain === 'browser' && action === 'use' ? rest.shift() : null;
     if (domain === 'browser' && action === 'use' && !browser) throw failure('UNKNOWN_ERROR', 'browser use 需要 chrome、edge 或 chromium。');
