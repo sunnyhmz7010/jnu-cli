@@ -1,0 +1,38 @@
+{
+  "name": "jnu-cli",
+  "version": "0.1.0",
+  "private": true,
+  "description": "暨南大学本科生教务命令行工具，支持正常登录、个人课表和成绩查询。",
+  "type": "module",
+  "bin": {
+    "jnu-cli": "src/cli.js"
+  },
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE",
+    "SECURITY.md",
+    "docs"
+  ],
+  "scripts": {
+    "jnu-cli": "node src/cli.js",
+    "test": "node scripts/test.mjs",
+    "check": "node scripts/check.mjs",
+    "prepack": "npm test && npm run check"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sunnyhmz7010/jnu-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sunnyhmz7010/jnu-cli/issues"
+  },
+  "homepage": "https://github.com/sunnyhmz7010/jnu-cli#readme",
+  "license": "GPL-3.0-only",
+  "dependencies": {
+    "playwright": "1.61.0"
+  }
+}

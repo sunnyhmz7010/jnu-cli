@@ -1,0 +1,17 @@
+node_modules/
+.local/
+.jnu-cli/
+browser-profiles/
+scratch/
+outputs/
+coverage/
+test-results/
+playwright-report/
+*.log
+*.har
+*.tgz
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
