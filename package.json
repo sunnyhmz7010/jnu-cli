@@ -10,8 +10,7 @@
     "src",
     "README.md",
     "LICENSE",
-    "SECURITY.md",
-    "docs"
+    "SECURITY.md"
   ],
   "scripts": {
     "jnu-cli": "node src/cli.js",
