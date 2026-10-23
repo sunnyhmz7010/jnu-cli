@@ -255,7 +255,7 @@ jnu-cli profile show
   "data": {
     "cli": {
       "name": "jnu-cli",
-      "version": "0.1.0"
+      "version": "1.0.0"
     },
     "node": {
       "version": "24.12.0",
