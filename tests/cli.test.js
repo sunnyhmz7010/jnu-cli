@@ -36,6 +36,7 @@ test('不存在独立档案时状态为未登录，查询给出 LOGIN_REQUIRED',
   assert.equal(JSON.parse(defaultOutput.stdout).data.loggedIn, false);
   assert.equal(JSON.parse(defaultOutput.stdout).data.reason, 'profile-missing');
   assert.equal(JSON.parse(defaultOutput.stdout).data.profileExists, false);
+  assert.equal(JSON.parse(defaultOutput.stdout).meta.network, 'direct');
   for (const domain of ['course', 'grade', 'exam', 'program', 'evaluation']) {
     const result = run([domain, 'list']);
     assert.equal(result.status, 11);
@@ -80,6 +81,22 @@ test('默认查询无界面，登录与 --headed 明确控制窗口且保留独�
   assert.equal(browserLaunchOptions(parseOptions('auth', 'login', ['--headless'])).headless, true);
   assert(browserLaunchOptions().args.includes('--restore-last-session'));
   assert(browserLaunchOptions({ network: 'direct' }).args.includes('--no-proxy-server'));
+  assert(browserLaunchOptions().args.includes('--no-proxy-server'));
+  assert(!browserLaunchOptions({ network: 'system' }).args.includes('--no-proxy-server'));
+});
+
+test('登录和所有教务命令默认直连，只有显式 system 才沿用系统代理配置', () => {
+  for (const [domain, action] of [['auth', 'login'], ['auth', 'status'], ['course', 'list'], ['grade', 'list'], ['exam', 'list'], ['completion', 'summary'], ['program', 'list'], ['evaluation', 'list'], ['profile', 'show']]) {
+    const direct = parseOptions(domain, action, []);
+    assert.equal(direct.network, 'direct');
+    assert(browserLaunchOptions(direct).args.includes('--no-proxy-server'));
+    const system = parseOptions(domain, action, ['--network', 'system']);
+    assert.equal(system.network, 'system');
+    assert(!browserLaunchOptions(system).args.includes('--no-proxy-server'));
+    assert(!browserLaunchOptions(direct).args.some(arg => arg.startsWith('--host-resolver-rules')));
+  }
+  const system = JSON.parse(run(['auth', 'status', '--network', 'system']).stdout);
+  assert.equal(system.meta.network, 'system');
 });
 
 test('方案新命令通过参数检查，未登录时仍返回真实 LOGIN_REQUIRED', () => {

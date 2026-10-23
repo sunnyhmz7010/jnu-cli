@@ -37,7 +37,7 @@
 
 - Node.js 20 及以上版本和 npm。
 - 已安装的 Microsoft Edge 或 Google Chrome，以及可显示浏览器窗口的桌面环境。
-- 可正常访问暨大本科教务系统的网络和本人本科学生账户。（默认使用系统代理，可在命令中添加 `--network direct` 让本次 CLI 浏览器直连。网络选择仅影响此次浏览器，后续命令使用适合当前环境的同一选项。）
+- 可正常访问暨大本科教务系统的网络和本人本科学生账户。（默认直连并禁用代理；用户明确需要系统代理时，在命令中添加 `--network system`。网络选择仅影响此次浏览器。）
 
 ### 📦 安装与运行
 
@@ -154,7 +154,7 @@ jnu-cli profile show
 - `--headed`：状态检查和教务查询使用可见浏览器窗口，默认无界面。
 - `auth login --headless`：登录默认显示浏览器；此参数供已有会话的无界面验证使用。
 - `--url <entryUrl>`：覆盖认证或业务入口 URL，仅接受 HTTP/HTTPS。
-- `--network system|direct`：认证和教务命令的网络选择，默认 `system`。`direct` 只让本次 CLI 浏览器直连，不修改全局代理或 DNS，也不替代校园网络或 WebVPN。
+- `--network system|direct`：认证和教务命令默认 `direct`，禁用代理。只有显式添加 `--network system` 才沿用系统代理配置。仅作用于本次浏览器进程，不修改全局代理或 DNS，也不替代校园网络或 WebVPN。
 - `--term <termId>`：课表、成绩、考试和评教的学期筛选，格式为 `2026-2027-1` 或 `2026-2027-2`。
 - `course list --week <n> --weekday <1-7>`：周次为 1 至 60，星期一为 1、星期日为 7。
 - `course today --date YYYY-MM-DD`：查询指定日期，默认日期按 `Asia/Shanghai` 解释。
@@ -179,7 +179,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system"
+    "network": "direct"
   }
 }
 ```
@@ -202,7 +202,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system"
+    "network": "direct"
   }
 }
 ```
@@ -390,7 +390,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/wdkb/"
   }
 }
@@ -453,7 +453,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/qxfacx/"
   }
 }
@@ -531,7 +531,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/qxfacx/"
   }
 }
@@ -597,7 +597,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/cjcx/"
   }
 }
@@ -647,7 +647,8 @@ jnu-cli profile show
         "requiredCourseCount": 10,
         "completedCourseCount": 8,
         "passed": false,
-        "storedSelectedCredits": 18
+        "storedSelectedCredits": 18,
+        "currentSelectedCredits": 4
       }
     ],
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xywccx/",
@@ -683,7 +684,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xywccx/"
   }
 }
@@ -693,7 +694,7 @@ jnu-cli profile show
 
 `status` 可能为 `completed`、`selected`、`not-taken` 或 `unknown`；原中文状态保存在 `statusName`。`not-taken` 表示方案候选课程，不保证当前开课或可选。`--state` 支持 `all`、`failed`、`passed`、`unread`、`pending`、`selected`，分别筛选全部、未通过、通过、未修读、未修读待选、已选课。非数值成绩不会转换为零分。
 
-课程合并已有结果与当前选课，同课程号的当前选课行全部保留，`source` 区分 `stored-result` 与 `current-selection`。方案与模块上的 `selectedCredits`、`storedSelectedCredits` 是已有结果，摘要的 `currentSelectedCredits` 是当前查询值；`currentTerm` 与 `selectionTerm` 分别表示教学学期和选课学期，不能混用。
+课程合并已有结果与当前选课，同课程号的当前选课行全部保留，`source` 区分 `stored-result` 与 `current-selection`。方案与模块上的 `selectedCredits`、`storedSelectedCredits` 是已有结果；摘要、模块行、模块树及课程查询的 `module` 均通过 `currentSelectedCredits` 单独返回当前查询值，不能把新旧学分相加。模块列表逐模块补查，课程列表仅补查所选模块；补查失败时返回错误，不使用旧值伪装成功。`currentTerm` 与 `selectionTerm` 分别表示教学学期和选课学期，不能混用。
 
 没有已有结果时返回 `calculation.state=not-calculated`、`summary=null`，并给出 `no-stored-result` 或 `no-personal-plan`；模块和课程列表为空。`status` 返回 `loggedIn`、`reason`、`calculation`、`sourceUrl`，仍需检查计算状态。
 
@@ -746,7 +747,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/studentWdksapApp/"
   }
 }
@@ -816,7 +817,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/wspjyyapp/"
   }
 }
@@ -892,7 +893,7 @@ jnu-cli profile show
     "backend": "playwright",
     "school": "jnu",
     "audience": "undergraduate",
-    "network": "system",
+    "network": "direct",
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xjxxbg/"
   }
 }
@@ -904,7 +905,7 @@ jnu-cli profile show
 
 - 登录态保存在本机：后续命令复用 `~/.jnu-cli/browser-profiles/<browser>/` 下的登录态。可用 `JNU_CLI_HOME` 指定存储目录；同一档案的命令应顺序执行。
 - 通过正常网页访问业务：使用 Playwright 打开独立浏览器窗口，经过学校统一身份认证和本科教务门户进入对应服务，再在业务页中执行同源查询。登录默认显示浏览器窗口，状态检查和业务查询默认无界面，可用 `--headed` 显示。
-- 按环境选择网络：默认沿用系统网络；代理链路出现 502 时，可在登录或查询命令中添加 `--network direct` 让本次 CLI 浏览器直连，例如 `jnu-cli auth login --network direct`。网络选择仅影响此次浏览器，后续命令使用适合当前环境的同一选项。
+- 默认直连：登录和查询均禁用代理；需要使用系统代理配置时，显式添加 `--network system`，例如 `jnu-cli auth login --network system`。网络选择仅影响此次浏览器，不修改全局网络配置。
 
 ## 🧱 技术栈
 

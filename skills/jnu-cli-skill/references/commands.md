@@ -30,7 +30,7 @@ jnu-cli auth status
 
 `completion courses` 的 `--state` 支持 `all`、`failed`、`passed`、`unread`、`pending`、`selected`；`--plan` 使用本人 `plans` 中的 `code`。没有已有结果时说明 `not-calculated`，不要把空记录当作完成。
 
-教务命令支持 `--network system|direct`；`system` 为默认，`direct` 只让本次 CLI 浏览器直连，不修改全局网络，也不替代校园网络或 WebVPN。
+教务命令支持 `--network system|direct`；默认 `direct`，禁用代理。只有显式添加 `--network system` 才沿用系统代理配置。仅影响本次浏览器，不修改全局网络，也不替代校园网络或 WebVPN。
 
 ## 回答形式
 

@@ -42,14 +42,14 @@ const help = `jnu-cli 暨南大学本科生版
 日期使用 Asia/Shanghai。成绩默认全部学期的有效成绩，不计算累计 GPA。
 登录默认显示浏览器；查询默认无界面，可用 --headed 显示浏览器。
 教务查询支持 --url 覆盖业务入口；completion 支持 --timeout 秒，默认 180 秒。
-教务命令可加 --network system|direct，默认 system；direct 仅让此次 CLI 浏览器直连。
+教务命令默认直连并禁用代理；只有显式添加 --network system 才沿用系统代理配置。
 独立档案：JNU_CLI_HOME 或 ~/.jnu-cli；浏览器可用 JNU_BROWSER 指定。
 学业完成只读已有结果；评教列表为课程评估项，不提交问卷；个人信息只读常用学籍字段。
 课程认定不适配。
 `;
 
 export function parseOptions(domain, action, args) {
-  const options = { headless: !(domain === 'auth' && action === 'login') };
+  const options = { headless: !(domain === 'auth' && action === 'login'), ...(domain === 'browser' ? {} : { network: 'direct' }) };
   const allowed = { auth: action === 'login' ? ['--timeout'] : [], course: ['--term', '--date', '--week', '--weekday'],
     grade: ['--term'], browser: [], exam: ['--term'], profile: [],
     completion: action === 'courses' ? ['--plan', '--module', '--state', '--timeout'] : ['--plan', '--timeout'],
@@ -119,7 +119,7 @@ export async function run(argv) {
     const browser = domain === 'browser' && action === 'use' ? rest.shift() : null;
     if (domain === 'browser' && action === 'use' && !browser) throw failure('UNKNOWN_ERROR', 'browser use 需要 chrome、edge 或 chromium。');
     const options = parseOptions(domain, action, rest);
-    if (domain !== 'browser') meta.network = options.network ?? 'system';
+    if (domain !== 'browser') meta.network = options.network;
     let data;
     if (domain === 'browser') data = action === 'use' ? selectBrowser(browser) : getBrowserStatus();
     else if (domain === 'auth') data = action === 'login' ? await login(options) : await authStatus(options);

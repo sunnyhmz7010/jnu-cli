@@ -64,7 +64,7 @@ jnu-cli auth login
 
 先用 `completion summary` 或 `completion modules` 查询，再用返回的 `moduleCode` 查询 `completion courses --module <moduleCode>`。`--plan` 只能使用本人 `plans` 返回的方案代码。
 
-学业完成只读取已有结果，不触发重算。`calculation.state=not-calculated` 时说明没有已有结果；不能把空列表解释为已完成全部要求。`storedSelectedCredits` 与 `currentSelectedCredits` 含义不同，不能相加或互相替代。未修读候选课程不代表当前开课或可选。
+学业完成只读取已有结果，不触发重算。`calculation.state=not-calculated` 时说明没有已有结果；不能把空列表解释为已完成全部要求。摘要、模块及模块树中的 `currentSelectedCredits` 为当前查询值；`selectedCredits`、`storedSelectedCredits` 保留已有结果，不能相加或互相替代。未修读候选课程不代表当前开课或可选。
 
 评教列表只包含课程评估项；`progress`、`currentByType` 和 `historyByType` 应分别解释。`no-tasks` 表示没有任务，不能说成已完成评教。当前 CLI 不提交评教、不读取答案。
 

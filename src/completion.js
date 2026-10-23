@@ -7,6 +7,13 @@ const states = { '0': 'failed', '1': 'passed', '2': 'unread', '3': 'pending', '4
 const labels = { '0': '未通过', '1': '通过', '2': '未修读', '3': '未修读待选', '4': '已选课' };
 const remainingCredits = (required, completed) => required === null || completed === null ? null : Math.round(Math.max(0, required - completed) * 100) / 100;
 
+async function supplementModuleCredits(post, context, module) {
+  if (!module.code || !module.typeCode) throw failure('PAGE_CHANGED', '学业模块缺少代码或类型，未发起无模块限制的学分查询。');
+  const selected = singleRow(await post(prefix + 'cxfakzyxxfgj.do', { ...context, KZH: module.code, KZLXDM: module.typeCode }, 'cxfakzyxxfgj'), 'cxfakzyxxfgj');
+  // 当前选课学分与已有计算结果分开保留；不能用旧值填补空值。
+  module.currentSelectedCredits = number(selected.XKXF);
+}
+
 export function mergeCompletionCourses(stored, current) {
   // 只从已计算结果侧排除同课程号；当前选课中同课程号的多行必须保留。
   const currentCodes = new Set(current.map((row) => text(row.KCH)).filter(Boolean));
@@ -65,10 +72,15 @@ export async function loadCompletion(post, options = {}, sourceUrl) {
     moduleCode: text(row.KZH), parentModuleCode: text(row.FKZH), moduleName: text(row.KZM), moduleTypeCode: text(row.KZLXDM), courseCategoryCode: text(row.KCLBDM),
     selectedCredits: number(row.XKXF), remainingCredits: remainingCredits(number(row.YQXF), number(row.WCXF)),
     requiredCourseCount: number(row.YQMS), completedCourseCount: number(row.WCMS), statusCode: text(row.SFTG), passed: String(row.SFTG) === '1' ? true : String(row.SFTG) === '0' ? false : null }));
-  const tree = moduleTree(items);
-  if (options.action === 'modules') return { ...result, items, tree, completeness: { complete: true, modules: modules.total, pages: modules.pages } };
+  if (options.action === 'modules') {
+    moduleTree(items);
+    for (const module of items) await supplementModuleCredits(post, termContext, module);
+    return { ...result, items, tree: moduleTree(items), completeness: { complete: true, modules: modules.total, pages: modules.pages } };
+  }
+  moduleTree(items);
   const module = items.find((row) => row.code === options.module);
   if (!module) throw failure('MODULE_NOT_FOUND', '未找到所选个人方案中的模块。');
+  await supplementModuleCredits(post, termContext, module);
   const courseContext = { ...context, KZH: module.code };
   const stored = await readAllPages((paging) => post(prefix + 'cxscfakzkc.do', { ...courseContext, '*order': '+SFTG,+KCH', ...paging }, 'cxscfakzkc'));
   const current = await readAllPages((paging) => post(prefix + 'cxsxkqk.do', { ...courseContext, XNXQDM: String(selectionTerm.DM), ...paging }, 'cxsxkqk'));

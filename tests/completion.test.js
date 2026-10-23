@@ -13,8 +13,8 @@ function fixture({ cached = true } = {}) {
       cxdqxnxq: [{ DM: '2026-2027-1', MC: '合成当前学期' }],
       cxxkxnxq: [{ DM: '2026-2027-2', MC: '合成选课学期' }],
       cxscfa: [{ PYFADM: 'plan-test', YQXF: '160', WCXF: '8', XKXF: '2' }],
-      cxfakzyxxfgj: [{ XKXF: '4' }],
-      cxscfakz: [{ KZH: 'module-test', KZM: '合成模块', FKZH: null, YQXF: '8', WCXF: '2', SFTG: '0' }],
+      cxfakzyxxfgj: [{ XKXF: form.KZH ? '6' : '4' }],
+      cxscfakz: [{ KZH: 'module-test', KZM: '合成模块', KZLXDM: '01', FKZH: null, YQXF: '8', WCXF: '2', XKXF: '2', SFTG: '0' }],
       cxscfakzkc: [{ KCH: 'A', KCM: '合成 A', CJ: '80', SFTG: '1' }, { KCH: 'B', KCM: '合成 B', SFTG: '2' }, { KCH: 'C', KCM: '合成 C', SFTG: '2' }],
       cxsxkqk: [{ KCH: 'A', KCM: '合成 A', SFTG: '3', CJ: '待选', PYFADM: null, KZH: null }, { KCH: 'A', KCM: '合成 A', SFTG: '4', CJ: '已选课', PYFADM: null, KZH: null }]
     }[name];
@@ -51,12 +51,43 @@ test('按当前课程号排除缓存侧重合，保留当前选课多行及其�
   assert.equal(current.filter((row) => row.selected).length, 1);
   assert.equal(current.find((row) => row.selected).status, 'selected');
   assert.equal(result.module.moduleCode, 'module-test');
+  assert.equal(result.module.currentSelectedCredits, 6);
+  assert.equal(result.module.storedSelectedCredits, 2);
+  assert.equal(calls.filter((call) => call.name === 'cxfakzyxxfgj' && call.form.KZH).length, 1);
   assert.equal(result.items.find((row) => row.courseCode === 'B').status, 'not-taken');
   assert.equal(calls.find((call) => call.name === 'cxsxkqk').form.XNXQDM, '2026-2027-2');
   assert.equal(result.completeness.mergedRows, 4);
   const selected = await loadCompletion(fixture().post, { studentId: 'student-test', action: 'courses', module: 'module-test', state: 'selected' });
   assert.equal(selected.items.length, 1);
   assert.equal(selected.items[0].statusCode, '4');
+});
+
+test('逐模块补查当前选课学分，模块行和树都保留新旧值及完整查询上下文', async () => {
+  const { post, calls } = fixture();
+  const result = await loadCompletion(post, { studentId: 'student-test', action: 'modules' });
+  assert.equal(result.summary.currentSelectedCredits, 4);
+  assert.equal(result.items[0].currentSelectedCredits, 6);
+  assert.equal(result.items[0].selectedCredits, 2);
+  assert.equal(result.items[0].storedSelectedCredits, 2);
+  assert.equal(result.tree[0].currentSelectedCredits, 6);
+  const supplement = calls.find((call) => call.name === 'cxfakzyxxfgj' && call.form.KZH);
+  assert.deepEqual(supplement.form, { XH: 'student-test', PYFADM: 'plan-test', BYNJDM: '-', SCLBDM: '04', XNXQDM: '2026-2027-1', KZH: 'module-test', KZLXDM: '01' });
+});
+
+test('模块补查保留零和空值，查询失败时不伪造为缓存值', async () => {
+  for (const value of ['0', null]) {
+    const { post } = fixture();
+    const result = await loadCompletion((path, form, name) => name === 'cxfakzyxxfgj' && form.KZH ? { rows: [{ XKXF: value }] } : post(path, form, name), { studentId: 'student-test', action: 'modules' });
+    assert.equal(result.items[0].currentSelectedCredits, value === null ? null : 0);
+    assert.equal(result.items[0].selectedCredits, 2);
+    assert.equal(result.items[0].storedSelectedCredits, 2);
+  }
+  const { post } = fixture();
+  await assert.rejects(loadCompletion((path, form, name) => {
+    if (name === 'cxfakzyxxfgj' && form.KZH) throw Object.assign(new Error('合成接口失败'), { code: 'API_ERROR' });
+    return post(path, form, name);
+  }, { studentId: 'student-test', action: 'modules' }), { code: 'API_ERROR' });
+  await assert.rejects(loadCompletion((path, form, name) => name === 'cxscfakz' ? { rows: [{ KZH: 'module-test' }], totalSize: 1 } : post(path, form, name), { studentId: 'student-test', action: 'modules' }), { code: 'PAGE_CHANGED' });
 });
 
 test('无已有结果返回未计算，不误报计算中或自动发起新计算', async () => {

@@ -6,7 +6,7 @@ import { postGroup } from './api.js';
 
 export function browserLaunchOptions(options = {}) {
   const args = ['--restore-last-session'];
-  if (options.network === 'direct') args.push('--no-proxy-server');
+  if ((options.network ?? 'direct') === 'direct') args.push('--no-proxy-server');
   return { headless: options.headless ?? !options.login, args, timeout: 30000 };
 }
 
