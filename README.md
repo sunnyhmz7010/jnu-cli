@@ -29,7 +29,7 @@
 | 学业进度 | 查看培养方案已有的学分完成结果、模块和课程修读状态 | `jnu-cli completion summary`<br>`jnu-cli completion modules` |
 | 培养方案 | 分页查询已发布方案，读取方案详情、课程模块和指导计划 | `jnu-cli program list --page 1` |
 | 评教进度 | 查看评教统计和待评、已评的课程评估项 | `jnu-cli evaluation summary`<br>`jnu-cli evaluation list` |
-| 个人信息 | 查询本人的院系、专业、班级、校区和学籍状态等常用信息 | `jnu-cli profile show` |
+| 个人信息 | 查询本人信息页已核对的 39 个字段，包含学籍、证件和联系方式 | `jnu-cli profile show` |
 
 ## ⚡ 快速开始
 
@@ -829,7 +829,9 @@ jnu-cli profile show
 
 ### 👤 本人信息 Schema
 
-`jnu-cli profile show` 和 `profile status` 只读本人常用学籍信息，两次验证当前学生身份及记录标识一致；不接受他人学号参数。
+`jnu-cli profile status` 返回本人常用学籍摘要。`profile show` 在同一摘要之外增加 `fields`，按已核对的个人信息页顺序输出全部 39 个可见字段。两者均先按当前学生身份查询，再按实际返回的记录标识读取详情，并核验身份及记录一致；不接受他人学号参数。
+
+`profile status` 的输出如下，`profile show` 保留其中的 `profile`、`verified` 和 `sourceUrl`：
 
 ```json
 {
@@ -888,7 +890,7 @@ jnu-cli profile show
     "sourceUrl": "https://jw.jnu.edu.cn/jwapp/sys/xjxxbg/"
   },
   "meta": {
-    "command": "profile show",
+    "command": "profile status",
     "gateway": "direct",
     "backend": "playwright",
     "school": "jnu",
@@ -899,7 +901,33 @@ jnu-cli profile show
 }
 ```
 
-编码字段同时保留 `code` 和 `name`，缺失值为 `null`。证件号、电话、邮箱、地址、银行卡等不进入结果，不输出原始档案。
+摘要中的编码字段同时保留 `code` 和 `name`，缺失值或空字符串为 `null`。
+
+`profile show` 的 `data.fields` 中，每项包含原字段名 `name`、页面标签 `label`、原值 `value` 和显示值 `displayValue`。下面仅展示几个条目，实际固定返回 39 项，空字段也保留：
+
+```json
+[
+  { "name": "XBDM", "label": "性别", "value": "example-code", "displayValue": "示例显示名称" },
+  { "name": "SFZJH", "label": "身份证件号", "value": "示例证件号", "displayValue": "示例证件号" },
+  { "name": "DZXX", "label": "电子信箱", "value": "student@example.invalid", "displayValue": "student@example.invalid" },
+  { "name": "ZYFXDM", "label": "专业方向", "value": null, "displayValue": null }
+]
+```
+
+`fields` 保留接口返回的空字符串、数值 `0` 和布尔值；字段缺失或为 `null` 时输出 `null`。有对应 `_DISPLAY` 字段时，`displayValue` 保留其值，包括空字符串或 `null`；没有该字段才使用原值。日期和编码不做推测转换。
+
+| 页面字段 | 原字段名 |
+|---|---|
+| 学号、姓名、姓名拼音（内招生）、英文名（外招生） | `XH`、`XM`、`XMPY`、`BY3` |
+| 性别、民族、生源地、出生日期、国家地区 | `XBDM`、`MZDM`、`SYDDM`、`CSRQ`、`GJDQDM` |
+| 身份证件类型、身份证件号、港澳台侨、曾用名、备注 | `SFZJLXDM`、`SFZJH`、`GATQDM`、`CYM`、`BZ` |
+| 院系、专业、专业方向、现在年级、学校校区、班级名称 | `YXDM`、`ZYDM`、`ZYFXDM`、`XZNJ`、`XXXQDM`、`BJMC` |
+| 学生类别、招生季度、培养层次、入学日期、学制 | `XSLBDM`、`ZSJDDM`、`PYCCDM`、`RXNY`、`XZ` |
+| 是否在籍、是否在校、学籍状态、辅修学院、辅修专业 | `SFZJ`、`SFZX`、`XJZTDM`、`FXXYDM`、`FXZYDM` |
+| 托管校区、入学年级、入学专业、考生号、预计毕业日期 | `TGXQ`、`RXNJ`、`RXZY`、`KSH`、`YJBYRQ` |
+| 电子信箱、家庭电话、联系电话、家庭地址 | `DZXX`、`JTDH`、`LXDH`、`JTDZ` |
+
+`profile show` 包含页面可见的证件和联系方式。隐藏的 `WID`、银行卡及其他未列出的档案字段不输出，不返回原始档案。字段范围依据此前核对的页面模型，学校页面变化后需重新核对。
 
 ## 🧠 功能细节
 
@@ -932,7 +960,7 @@ jnu-cli/
 │   ├── completion.js        # 学业完成和当前选课
 │   ├── program.js           # 培养方案
 │   ├── evaluation.js        # 评教进度
-│   ├── profile.js           # 本人常用学籍信息
+│   ├── profile.js           # 本人学籍摘要和完整页面字段
 │   ├── module-tree.js       # 模块层级检查
 │   └── format.js            # 数据格式化辅助
 ├── skills/jnu-cli-skill/     # Agent Skill 与命令参考

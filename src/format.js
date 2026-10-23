@@ -27,6 +27,7 @@ export function formatResult(command, data) {
     return heading.join('\n');
   }
   if (domain === 'profile') {
+    if (action === 'show' && data.fields) return data.fields.map((field) => `${field.label}\t${shown(field.displayValue)}`).join('\n');
     const person = data.profile;
     return [`学号 ${shown(person.studentId)}；姓名 ${shown(person.name)}`, `院系 ${shown(person.department.name)}；专业 ${shown(person.major.name)}`,
       `年级 ${shown(person.grade.name ?? person.grade.code)}；班级 ${shown(person.className)}`,

@@ -24,11 +24,13 @@ jnu-cli auth status
 | 成绩 | `grade list`；按需加 `--term` | 自行重算 GPA、推断排名或在摘要足够时输出完整成绩表 |
 | 考试安排 | `exam list`；按需加 `--term` | 把考场、座位的空值或未检查冲突当作确定结果 |
 | 评教进度与待评项 | `evaluation summary`；`evaluation list --state pending\|completed\|all` | 提交评教或把问卷条数当作课程门数 |
-| 本人学籍信息 | `profile show` | 指定他人身份或展示无关个人字段 |
+| 本人学籍摘要或完整页面信息 | 摘要用 `profile status`；完整字段用 `profile show` | 指定他人身份或展示无关个人字段 |
 
 `program list` 默认每页 10 条；通过 `--page` 和 `--limit` 分页，`--keyword`、`--grade`、`--department`、`--major` 筛选。详情的位置参数只使用列表返回的 `id` 或 `planCode`。
 
 `completion courses` 的 `--state` 支持 `all`、`failed`、`passed`、`unread`、`pending`、`selected`；`--plan` 使用本人 `plans` 中的 `code`。没有已有结果时说明 `not-calculated`，不要把空记录当作完成。
+
+`profile show` 的 `profile` 为学籍摘要，`fields` 按已核对页面顺序包含 39 个可见字段，每项提供 `name`、`label`、`value` 和 `displayValue`，包含证件和联系方式。只在回答中展示当前问题需要的字段；`profile status` 只返回学籍摘要。
 
 教务命令支持 `--network system|direct`；默认 `direct`，禁用代理。只有显式添加 `--network system` 才沿用系统代理配置。仅影响本次浏览器，不修改全局网络，也不替代校园网络或 WebVPN。
 

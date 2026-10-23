@@ -44,7 +44,8 @@ const help = `jnu-cli 暨南大学本科生版
 教务查询支持 --url 覆盖业务入口；completion 支持 --timeout 秒，默认 180 秒。
 教务命令默认直连并禁用代理；只有显式添加 --network system 才沿用系统代理配置。
 独立档案：JNU_CLI_HOME 或 ~/.jnu-cli；浏览器可用 JNU_BROWSER 指定。
-学业完成只读已有结果；评教列表为课程评估项，不提交问卷；个人信息只读常用学籍字段。
+学业完成只读已有结果；评教列表为课程评估项，不提交问卷。
+profile status 返回学籍摘要；profile show 返回已核对的 39 个页面字段，含证件和联系方式。
 课程认定不适配。
 `;
 

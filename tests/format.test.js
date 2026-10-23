@@ -24,3 +24,19 @@ test('扩展模块后仍保留原课表和成绩的普通输出', () => {
   assert(grade.startsWith('grade list：1 条'));
   assert(grade.includes('绩点 0'));
 });
+
+test('完整个人信息展示页面字段名称及显示值，学籍摘要仍可单独使用', () => {
+  const result = formatResult('profile show', { fields: [
+    { name: 'XBDM', label: '性别', value: '1', displayValue: '合成性别' },
+    { name: 'LXDH', label: '联系电话', value: 'SYNTHETIC_PHONE', displayValue: 'SYNTHETIC_PHONE' },
+    { name: 'BY3', label: '英文名（外招生）', value: '', displayValue: '' },
+    { name: 'ZYFXDM', label: '专业方向', value: null, displayValue: null },
+    { name: 'XZ', label: '学制', value: 0, displayValue: 0 }
+  ] });
+  assert.equal(result, '性别\t合成性别\n联系电话\tSYNTHETIC_PHONE\n英文名（外招生）\t\n专业方向\t--\n学制\t0');
+  const summary = formatResult('profile status', { profile: { studentId: 'student-test', name: '合成学生', department: {}, major: {},
+    grade: { code: '2025' }, className: null, campus: {}, enrollmentStatus: {}, registered: {}, onCampus: {} } });
+  assert(summary.includes('学号 student-test；姓名 合成学生'));
+  assert(summary.includes('年级 2025'));
+  assert(!summary.includes('undefined'));
+});

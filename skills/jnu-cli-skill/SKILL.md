@@ -68,6 +68,10 @@ jnu-cli auth login
 
 评教列表只包含课程评估项；`progress`、`currentByType` 和 `historyByType` 应分别解释。`no-tasks` 表示没有任务，不能说成已完成评教。当前 CLI 不提交评教、不读取答案。
 
+## 本人信息
+
+学籍摘要使用 `profile status`。需要页面完整信息或摘要之外的字段时使用 `profile show`：`profile` 保留学籍摘要，`fields` 包含已核对的 39 个可见字段及其原值、显示值和页面标签。证件和联系方式也在其中，只向用户展示当前问题所需字段，不保存整份结果。两条命令都只查询当前登录本人，不接受他人学号。
+
 ## 操作规则
 
 - Agent 工作流解析默认 JSON，不要依赖 stdout 文案。
