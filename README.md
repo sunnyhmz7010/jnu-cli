@@ -1,11 +1,18 @@
 <div align="center">
   <h1>jnu-cli</h1>
-  <p>面向暨南大学网页服务的 agent-friendly CLI</p>
+  <p>通过命令行查询暨南大学本科教务信息，为智能体提供结构化输出</p>
   <p>本项目借鉴 <a href="https://github.com/AwesomeHou/szu-cli">szu-cli</a> 的开发思路，针对暨南大学本科教务系统及其他网页服务完成适配。在此谨向原作者致以诚挚谢意，感谢其作出的原创性贡献。</p>
   <p>本项目为个人开源项目，与暨南大学及其相关部门无隶属、合作或授权关系。项目按“现状”提供，不保证功能可用性与数据准确性；使用所产生的风险及后果由使用者自行承担，请遵守学校相关规定。</p>
 </div>
 
 <p align="center">
+  <img src="https://img.shields.io/badge/JavaScript-ES_Modules-f7df1e?style=flat-square&amp;logo=javascript&amp;logoColor=white" alt="JavaScript ES Modules" />
+  <img src="https://img.shields.io/badge/Node.js-20%2B-5fa04e?style=flat-square&amp;logo=nodedotjs&amp;logoColor=white" alt="Node.js 20+" />
+  <img src="https://img.shields.io/badge/Playwright-1.61.0-2ead33?style=flat-square&amp;logo=playwright&amp;logoColor=white" alt="Playwright 1.61.0" />
+</p>
+
+<p align="center">
+  <a href="https://github.com/sunnyhmz7010/jnu-cli/releases"><img src="https://img.shields.io/github/v/release/sunnyhmz7010/jnu-cli?label=Release&amp;color=3b82f6" alt="Release" /></a>
   <a href="https://github.com/sunnyhmz7010/jnu-cli/blob/main/LICENSE"><img src="https://img.shields.io/github/license/sunnyhmz7010/jnu-cli?color=10b981" alt="License" /></a>
 </p>
 
@@ -41,7 +48,7 @@
 
 ### 📦 安装与运行
 
-#### 从 npm 安装
+#### 📦 从 npm 安装
 
 ```bash
 npm install -g jnu-cli
@@ -49,37 +56,42 @@ npm install -g jnu-cli
 
 安装后可直接使用 `jnu-cli` 命令。
 
-#### 免安装运行
+#### ⚡ 免安装运行
 
 ```bash
-npx jnu-cli@latest
+npx jnu-cli@latest --help
 ```
 
-#### 检查运行环境
+采用免安装方式时，将下文示例中的 `jnu-cli` 替换为 `npx jnu-cli@latest`。
+
+**检查运行环境**
 
 ```bash
 jnu-cli doctor
 ```
 
-#### 查看浏览器状态
+**查看浏览器状态**
 
 ```bash
 jnu-cli browser status
 ```
 
-#### 登录
+**登录并查询今日课表**
 
 ```bash
 jnu-cli auth login
+jnu-cli course today
 ```
 
-`auth login` 会打开一个持久化浏览器 profile。请用户手动完成暨南大学统一身份认证。学校会话到期后重新运行登录命令即可。
+`auth login` 会打开一个持久化浏览器 profile，请在浏览器中手动完成暨南大学统一身份认证。随后查询成功时返回 `ok: true`，`data.items` 为今日课程列表，无课时为空数组。学校会话到期后重新运行登录命令即可。
+
+## 📖 使用说明
 
 ### 🤖 Agent Skill
 
 配套 Skill 位于 [skills/jnu-cli-skill](skills/jnu-cli-skill/README.md)，随 npm 包发布。将整个 `jnu-cli-skill` 目录复制到你所用 AI Agent 能识别的 skills 目录中。
 
-#### 推荐通用放置路径
+**推荐通用放置路径**
 
 `.agents/skills/` 是目前被 Codex、Gemini CLI、Cursor、OpenCode 等多个 Agent 共同支持的跨客户端标准路径。
 
@@ -87,7 +99,7 @@ jnu-cli auth login
 ~/.agents/skills/jnu-cli-skill/
 ```
 
-#### Codex 全局目录示例
+**Codex 全局目录示例**
 
 ```text
 ~/.codex/skills/jnu-cli-skill/
@@ -99,13 +111,11 @@ jnu-cli auth login
 $CODEX_HOME/skills/jnu-cli-skill/
 ```
 
-#### Claude Code 全局目录示例
+**Claude Code 全局目录示例**
 
 ```text
 ~/.claude/skills/jnu-cli-skill/
 ```
-
-## 📖 使用说明
 
 ### ⌨️ 命令形态
 
@@ -937,10 +947,9 @@ jnu-cli profile show
 
 ## 🧱 技术栈
 
-- 语言：JavaScript，Node.js 20+，ES Modules。
-- 浏览器：Playwright 1.61.0，使用持久化本地档案。
-- 测试：Node.js 内置测试运行器，全部夹具使用合成数据。
-- 目标平台：支持 Chrome、Edge 或 Playwright Chromium 的桌面环境；已验收 Windows Edge。
+- JavaScript（ES Modules）：CLI 命令解析与教务数据处理。
+- Node.js 20+：命令行运行时，使用内置测试运行器。
+- Playwright 1.61.0：浏览器自动化与持久化本地档案。
 
 ## 🗂️ 项目结构
 
@@ -973,6 +982,7 @@ jnu-cli/
 
 ### 🧰 环境
 
+- 开发平台：支持 Chrome、Edge 或 Playwright Chromium 的桌面环境；已验收 Windows Edge。
 - Node.js >= 20 和 npm
 
 ### ⚙️ 命令
@@ -982,9 +992,6 @@ git clone https://github.com/sunnyhmz7010/jnu-cli.git
 cd jnu-cli
 npm ci
 npm run jnu-cli -- --help
-npm test
-npm run check
-npm pack --dry-run --ignore-scripts
 ```
 
 源码入口为 `node src/cli.js`，也可使用 `npm run jnu-cli -- <参数>`。安装后的命令与源码入口使用同一套参数。
