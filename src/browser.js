@@ -84,6 +84,52 @@ export async function enterPortal(context, options = {}) {
 
 export async function openApp(context, portal, kind) {
   const app = APPS[kind];
+  const discovered = await portal.evaluate((name) => ({
+    root: window.AMPConstant?.requestPath ?? '/',
+    urls: [...document.querySelectorAll('[amp-title][amp-url]')]
+      .filter((node) => node.getAttribute('amp-title').trim() === name)
+      .map((node) => node.getAttribute('amp-url'))
+  }), app.name);
+  const entry = resolveServiceEntry(discovered, app.path);
+  if (entry) {
+    // 保留门户供点击兜底；发现的地址只在本次查询使用，不持久化认证链接。
+    const candidate = await context.newPage();
+    try {
+      await navigatePortal(candidate, entry);
+      return await waitForApp(context, candidate, kind);
+    } catch (error) {
+      await candidate.close();
+      if (error.code !== 'PAGE_CHANGED' && error.name !== 'TimeoutError') throw error;
+      process.stderr.write(`动态入口未能打开${app.name}，改用门户点击流程。\n`);
+    }
+  }
+  return clickApp(context, portal, kind);
+}
+
+export function resolveServiceEntry({ root, urls }, appPath) {
+  if (typeof root !== 'string' || !Array.isArray(urls)) return null;
+  const valid = new Set();
+  for (const raw of urls) {
+    if (typeof raw !== 'string' || !raw.trim()) continue;
+    let url;
+    try {
+      const base = new URL(root.endsWith('/') ? root : `${root}/`, ORIGIN);
+      url = new URL(raw, base);
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+      continue;
+    }
+    // 只接受学校同源的服务分发入口或目标应用，拒绝外部地址及其他业务。
+    if (url.origin !== ORIGIN || url.username || url.password) continue;
+    if (!(url.pathname === '/appShow' && /^\d+$/.test(url.searchParams.get('appId') ?? ''))
+      && !url.pathname.startsWith(appPath)) continue;
+    valid.add(url.href);
+  }
+  return valid.size === 1 ? [...valid][0] : null;
+}
+
+async function clickApp(context, portal, kind) {
+  const app = APPS[kind];
   // 门户标题和搜索建议保留换行、缩进，匹配名称时允许两侧空白。
   const appName = new RegExp(`^\\s*${app.name}\\s*$`);
   const recent = portal.locator('.widget-title:visible').filter({ hasText: appName });
